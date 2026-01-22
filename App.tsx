@@ -155,7 +155,7 @@ const App = () => {
     const script = `/** AdExclusion Live Engine | Generated: ${new Date().toISOString()} */
 (function(){
   const rules = ${JSON.stringify(activeRules)};
-  const targeting = window.page_meta?.third_party_apps?.ntAds?.targeting;
+  const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
   if (!targeting || !rules.length) return;
   const injectStyle = (sel) => {
     const s = document.createElement('style');
