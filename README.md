@@ -3,17 +3,17 @@
 
 **AdExclusion Enterprise** je administrativni alat dizajniran za news portale visoke posjećenosti.
 
-## 🚀 VAŽNO: Cloudflare Pages Konfiguracija
+## 🚀 Cloudflare Pages Dashboard Postavke
 
-Da bi build uspio, u Cloudflare Dashboardu podesite sljedeće:
+Ako sustav zahtijeva unos svih polja, unesite ove vrijednosti:
 
-1. **Build command**: (ostavite prazno)
-2. **Build output directory**: `/`
-3. **Deploy command**: (ostavite prazno - NEMOJTE upisivati `wrangler deploy`)
+1. **Build command**: `echo "Skip build"`
+2. **Build output directory**: `.`
+3. **Deploy command**: `npx wrangler pages deploy . --project-name adexclusion-manager`
 
-### KV Binding
-Obavezno u postavkama Pages-a pod **Bindings** povežite:
-- **Variable name**: `AD_EXCLUS_KV` (ili kako je u kodu) 
+### KV Binding (Obavezno)
+U postavkama Pages-a pod **Settings > Functions > KV namespace bindings**:
+- **Variable name**: `AD_EXCLUSION_KV`
 - **KV namespace**: Izaberite vaš kreirani namespace.
 
 ---

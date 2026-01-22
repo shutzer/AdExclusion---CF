@@ -1,6 +1,6 @@
 
 #:schema node_modules/wrangler/config-schema.json
-name = "adexclusion-manager"
+name = "adex-manager"
 pages_build_output_dir = "."
 
 [[kv_namespaces]]

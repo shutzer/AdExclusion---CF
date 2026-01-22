@@ -4,6 +4,10 @@
   "version": "2.1.0",
   "description": "Edge-native Ad Exclusion Engine for High-Traffic Portals",
   "private": true,
+  "scripts": {
+    "build": "echo 'No build step required'",
+    "deploy": "wrangler pages deploy . --project-name adexclusion-manager"
+  },
   "devDependencies": {
     "wrangler": "^3.101.0"
   }
