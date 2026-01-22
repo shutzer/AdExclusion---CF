@@ -1,7 +1,8 @@
 
+#:schema node_modules/wrangler/config-schema.json
 name = "adexclusion-manager"
 pages_build_output_dir = "."
 
 [[kv_namespaces]]
 binding = "AD_EXCLUSION_KV"
-id = "a8017b5da883497c93f42d18b77325a3" # Ovo ćete zamijeniti stvarnim ID-om nakon kreiranja KV-a
+id = "a8017b5da883497c93f42d18b77325a3"
