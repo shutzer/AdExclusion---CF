@@ -6,6 +6,3 @@ pages_build_output_dir = "."
 [[kv_namespaces]]
 binding = "AD_EXCLUSION_KV"
 id = "a8017b5da883497c93f42d18b77325a3"
-
-[build]
-command = "npm run build"

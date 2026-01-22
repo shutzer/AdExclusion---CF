@@ -1,23 +1,22 @@
 
 # AdExclusion Enterprise 🚀
 
-**AdExclusion Enterprise** koristi Cloudflare Pages arhitekturu za maksimalne performanse na Edge-u.
+**AdExclusion Enterprise** je spreman za rad na Cloudflare Pages infrastrukturi.
 
-## 🚀 Cloudflare Dashboard Postavke
+## 🛠️ Deployment Popravak (Kritično)
 
-Ako sustav od vas traži unos u obavezna polja, unesite sljedeće:
+Na temelju logova, sustav je padao zbog `[build]` sekcije u `wrangler.toml`. To je sada uklonjeno.
 
-1. **Build command**: `npm run build`
-2. **Build output directory**: `.`
-3. **Deploy command**: `npm run deploy`
+### Postavke u Cloudflare Dashboardu:
 
-### Ručna konfiguracija KV bindinga
-U Cloudflare sučelju pod **Settings > Functions > KV namespace bindings**:
-- **Variable name**: `AD_EXCLUSION_KV`
-- **KV namespace**: Odaberite vaš namespace s ID-em `a8017b5da883497c93f42d18b77325a3`.
+Na slici koju ste poslali, polja trebaju biti:
 
-### Zašto "npm run deploy"?
-Ova naredba poziva `wrangler pages deploy .`. To osigurava da Cloudflare prepozna projekt kao **Pages** (Static + Functions), a ne kao običan **Worker**, čime se rješava greška koju ste dobili.
+1. **Build command**: `npm run build` (Sada je to siguran `echo`)
+2. **Build output directory**: `.` 
+3. **Deploy command**: `npm run deploy` (Ovo će sada proći jer je `wrangler.toml` validan)
+
+### KV Namespace
+Provjerite je li binding `AD_EXCLUSION_KV` postavljen u **Settings > Functions > KV namespace bindings** unutar Pages projekta na Dashboardu, jer `wrangler.toml` za Pages ponekad zahtijeva i ručnu potvrdu u UI-u.
 
 ---
-*Senior Architecture Team*
+*Digital Ops Architecture*
