@@ -1,4 +1,3 @@
-
 // Added local definitions for Cloudflare environment types to fix compilation errors
 interface KVNamespace {
   get(key: string): Promise<string | null>;
@@ -17,9 +16,20 @@ interface Env {
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const dataRaw = await context.env.AD_EXCLUSION_KV.get("rules_data");
-  const data = dataRaw ? JSON.parse(dataRaw) : { script: "/* AdExclusion: No rules found */" };
+  const fallback = "/* AdExclusion: No rules found */";
+  
+  if (!dataRaw) {
+    return new Response(fallback, {
+      headers: { "Content-Type": "application/javascript; charset=utf-8" }
+    });
+  }
 
-  return new Response(data.script, {
+  const data = JSON.parse(dataRaw);
+  
+  // Ako rules ne postoji ili je prazan niz, vraćamo fallback komentar
+  const output = (data.rules && data.rules.length > 0) ? data.script : fallback;
+
+  return new Response(output, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
       "Cache-Control": "public, max-age=60, s-maxage=60",
