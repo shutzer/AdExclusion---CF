@@ -1,9 +1,12 @@
 export enum Operator {
   EQUALS = 'equals',
-  CONTAINS = 'contains'
+  CONTAINS = 'contains',
+  NOT_EQUALS = 'not_equals',
+  NOT_CONTAINS = 'not_contains'
 }
 
 export type ActionType = 'hide' | 'show';
+export type LogicalOperator = 'AND' | 'OR';
 
 export type TargetingKey = 
   | 'site' 
@@ -16,6 +19,12 @@ export type TargetingKey =
   | 'section' 
   | 'top_section' 
   | 'ab_test';
+
+export interface Condition {
+  targetKey: TargetingKey;
+  operator: Operator;
+  value: string;
+}
 
 export interface TargetingData {
   site: string;
@@ -33,11 +42,10 @@ export interface TargetingData {
 export interface BlacklistRule {
   id: string;
   name: string;
-  targetKey: TargetingKey;
-  operator: Operator;
-  value: string;
+  conditions: Condition[];
+  logicalOperator: LogicalOperator;
   targetElementSelector: string;
-  action: ActionType; // 'hide' ili 'show'
+  action: ActionType;
   isActive: boolean;
   createdAt: number;
 }

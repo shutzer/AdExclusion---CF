@@ -11,6 +11,13 @@ const TARGETING_KEYS = [
   { label: 'AB Test', value: 'ab_test' }
 ];
 
+const OPERATORS = [
+  { label: 'Jednako (==)', value: 'equals' },
+  { label: 'NIJE Jednako (!=)', value: 'not_equals' },
+  { label: 'Sadrži', value: 'contains' },
+  { label: 'NE Sadrži', value: 'not_contains' }
+];
+
 const LoginForm = ({ onLogin }) => {
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
@@ -69,16 +76,28 @@ const Sandbox = ({ rules }) => {
     content_id: 'article:998877',
     domain: 'gol.dnevnik.hr'
   });
+
+  const checkCondition = (cond, data) => {
+    const actual = String(data[cond.targetKey] || '').toLowerCase().trim();
+    const expected = cond.value.toLowerCase().trim();
+    
+    switch(cond.operator) {
+      case 'equals': return actual === expected;
+      case 'not_equals': return actual !== expected;
+      case 'contains': return actual.includes(expected);
+      case 'not_contains': return !actual.includes(expected);
+      default: return false;
+    }
+  };
+
   const activeMatches = useMemo(() => {
     return rules.filter(rule => {
       if (!rule.isActive) return false;
-      const actual = mockData[rule.targetKey];
-      if (!actual) return false;
-      const val = rule.value.toLowerCase().trim();
-      const act = String(actual).toLowerCase().trim();
-      return rule.operator === 'equals' ? act === val : act.includes(val);
+      const results = rule.conditions.map(c => checkCondition(c, mockData));
+      return rule.logicalOperator === 'AND' ? results.every(r => r) : results.some(r => r);
     });
   }, [rules, mockData]);
+
   return (
     <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
       <div className="flex items-center gap-3 mb-8">
@@ -146,8 +165,13 @@ const App = () => {
   const publish = async () => {
     setIsPublishing(true);
     const activeRules = rules.filter(r => r.isActive).map(r => ({
-      key: r.targetKey, op: r.operator, val: r.value, sel: r.targetElementSelector, act: r.action || 'hide'
+      name: r.name,
+      conds: r.conditions,
+      lOp: r.logicalOperator,
+      sel: r.targetElementSelector,
+      act: r.action || 'hide'
     }));
+
     const script = `/** AdExclusion Live Engine | Generated: ${new Date().toISOString()} */
 (function(){
   const rules = ${JSON.stringify(activeRules)};
@@ -158,7 +182,6 @@ const App = () => {
     const displayVal = action === 'show' ? 'block' : 'none';
     const visibilityVal = action === 'show' ? 'visible' : 'hidden';
     const pointerEvents = action === 'show' ? 'auto' : 'none';
-    
     s.innerHTML = sel + ' { ' +
       'display: ' + displayVal + ' !important; ' +
       'visibility: ' + visibilityVal + ' !important; ' +
@@ -168,50 +191,61 @@ const App = () => {
     document.head.appendChild(s);
   };
   rules.forEach(rule => {
-    const actual = targeting[rule.key];
-    if (actual === undefined || actual === null) return;
-    let match = false;
-    if (rule.op === 'equals') match = String(actual) === rule.val;
-    else if (rule.op === 'contains') {
-      const actStr = Array.isArray(actual) ? actual.join(' ') : String(actual);
-      match = actStr.toLowerCase().includes(rule.val.toLowerCase());
-    }
+    const results = rule.conds.map(c => {
+      const actual = String(targeting[c.targetKey] || '').toLowerCase().trim();
+      const val = c.value.toLowerCase().trim();
+      switch(c.operator) {
+        case 'equals': return actual === val;
+        case 'not_equals': return actual !== val;
+        case 'contains': return actual.indexOf(val) !== -1;
+        case 'not_contains': return actual.indexOf(val) === -1;
+        default: return false;
+      }
+    });
+    const match = rule.lOp === 'AND' ? results.every(r => r) : results.some(r => r);
     if (match) injectStyle(rule.sel, rule.act);
   });
 })();`;
+
     try {
       await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rules, script })
       });
-      
-      let purgeMsg = '';
-      try {
-        const purgeRes = await fetch('/api/purge', { method: 'POST' });
-        const purgeJson = await purgeRes.json();
-        if (purgeJson.success) {
-          purgeMsg = ' i cache je invalidiran.';
-        } else {
-          purgeMsg = '. UPOZORENJE: Cache invalidacija nije uspjela (CF Error).';
-          console.error('CF Purge Failed:', purgeJson);
-        }
-      } catch (e) {
-        purgeMsg = '. UPOZORENJE: Neuspješan poziv za cache invalidaciju.';
-      }
-
-      alert('🚀 USPJEH! Pravila su sinkronizirana s Edge mrežom' + purgeMsg);
+      const purgeRes = await fetch('/api/purge', { method: 'POST' });
+      const purgeJson = await purgeRes.json();
+      alert('🚀 USPJEH! ' + (purgeJson.success ? 'Cache je invalidiran.' : 'Greška pri brisanju cachea.'));
     } catch (e) { alert('Greška pri objavljivanju.'); }
     finally { setIsPublishing(false); }
   };
 
   const handleEdit = (rule) => {
-    setEditingRule({ ...rule, action: rule.action || 'hide' });
+    setEditingRule({ ...rule });
     setIsAdding(true);
   };
 
+  const addCondition = () => {
+    setEditingRule({
+      ...editingRule,
+      conditions: [...editingRule.conditions, { targetKey: 'section', operator: 'equals', value: '' }]
+    });
+  };
+
+  const removeCondition = (index) => {
+    const newConds = [...editingRule.conditions];
+    newConds.splice(index, 1);
+    setEditingRule({ ...editingRule, conditions: newConds });
+  };
+
+  const updateCondition = (index, field, val) => {
+    const newConds = [...editingRule.conditions];
+    newConds[index] = { ...newConds[index], [field]: val };
+    setEditingRule({ ...editingRule, conditions: newConds });
+  };
+
   const handleSubmit = () => {
-    if (!editingRule.name || !editingRule.value || !editingRule.targetElementSelector) {
+    if (!editingRule.name || editingRule.conditions.some(c => !c.value) || !editingRule.targetElementSelector) {
         alert("Sva polja su obavezna.");
         return;
     }
@@ -262,7 +296,7 @@ const App = () => {
             {isPublishing ? 'Sinkronizacija...' : '🚀 Objavi na Edge'}
           </button>
           <button 
-            onClick={() => { setEditingRule({ id: Math.random().toString(), name: '', targetKey: 'section', operator: 'equals', value: '', targetElementSelector: '', action: 'hide', isActive: true }); setIsAdding(true); }} 
+            onClick={() => { setEditingRule({ id: Math.random().toString(), name: '', conditions: [{ targetKey: 'section', operator: 'equals', value: '' }], logicalOperator: 'AND', targetElementSelector: '', action: 'hide', isActive: true }); setIsAdding(true); }} 
             className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-[2px] font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
           >
             + Novo Pravilo
@@ -275,47 +309,73 @@ const App = () => {
             <h2 className="text-xl font-black uppercase tracking-tight mb-8">
                 {rules.some(r => r.id === editingRule.id) ? 'Uredi Pravilo' : 'Konfiguracija Pravila'}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="md:col-span-3">
+            <div className="space-y-6">
+              <div>
                 <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Naziv Kampanje</label>
                 <input type="text" value={editingRule.name} onChange={e => setEditingRule({...editingRule, name: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" placeholder="npr. Hide Heineken on Sport" />
               </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Kategorija</label>
-                <select value={editingRule.targetKey} onChange={e => setEditingRule({...editingRule, targetKey: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold">
-                  {TARGETING_KEYS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
-                </select>
+
+              <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100">
+                <div className="flex justify-between items-center mb-6">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Uvjeti Targetiranja</label>
+                    {editingRule.conditions.length > 1 && (
+                        <div className="flex bg-white p-1 rounded-xl border border-slate-200">
+                            <button onClick={() => setEditingRule({...editingRule, logicalOperator: 'AND'})} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${editingRule.logicalOperator === 'AND' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>AND</button>
+                            <button onClick={() => setEditingRule({...editingRule, logicalOperator: 'OR'})} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${editingRule.logicalOperator === 'OR' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>OR</button>
+                        </div>
+                    )}
+                </div>
+                <div className="space-y-4">
+                    {editingRule.conditions.map((cond, idx) => (
+                        <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                            <div className="md:col-span-4">
+                                <select value={cond.targetKey} onChange={e => updateCondition(idx, 'targetKey', e.target.value)} className="w-full p-3 bg-white border border-slate-100 rounded-xl font-bold text-xs">
+                                    {TARGETING_KEYS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="md:col-span-3">
+                                <select value={cond.operator} onChange={e => updateCondition(idx, 'operator', e.target.value)} className="w-full p-3 bg-white border border-slate-100 rounded-xl font-bold text-xs text-indigo-600">
+                                    {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="md:col-span-4">
+                                <input type="text" value={cond.value} onChange={e => updateCondition(idx, 'value', e.target.value)} className="w-full p-3 bg-white border border-slate-100 rounded-xl font-bold text-xs" placeholder="Vrijednost" />
+                            </div>
+                            <div className="md:col-span-1 flex justify-center">
+                                <button onClick={() => removeCondition(idx)} disabled={editingRule.conditions.length === 1} className="text-red-300 hover:text-red-500 transition-colors disabled:opacity-0">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <button onClick={addCondition} className="mt-6 flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 tracking-widest hover:text-indigo-800 transition-colors">
+                    <span className="bg-indigo-100 w-5 h-5 flex items-center justify-center rounded-full">+</span>
+                    Dodaj Uvjet
+                </button>
               </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Operator</label>
-                <select value={editingRule.operator} onChange={e => setEditingRule({...editingRule, operator: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-indigo-600">
-                  <option value="equals">Identitčno (Equals)</option>
-                  <option value="contains">Sadrži (Contains)</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Vrijednost</label>
-                <input type="text" value={editingRule.value} onChange={e => setEditingRule({...editingRule, value: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-bold" placeholder="npr. nogomet" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">CSS Selektor</label>
-                <input type="text" value={editingRule.targetElementSelector} onChange={e => setEditingRule({...editingRule, targetElementSelector: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-mono text-xs outline-none focus:ring-2 focus:ring-indigo-500" placeholder=".klasa ili #id" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Akcija</label>
-                <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl h-[58px]">
-                  <button 
-                    onClick={() => setEditingRule({...editingRule, action: 'hide'})}
-                    className={`flex-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${editingRule.action === 'hide' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-100'}`}
-                  >
-                    Sakrij
-                  </button>
-                  <button 
-                    onClick={() => setEditingRule({...editingRule, action: 'show'})}
-                    className={`flex-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${editingRule.action === 'show' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-100'}`}
-                  >
-                    Prikaži
-                  </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                <div className="md:col-span-9">
+                    <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">CSS Selektor</label>
+                    <input type="text" value={editingRule.targetElementSelector} onChange={e => setEditingRule({...editingRule, targetElementSelector: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl font-mono text-xs outline-none focus:ring-2 focus:ring-indigo-500" placeholder=".klasa ili #id" />
+                </div>
+                <div className="md:col-span-3">
+                    <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Akcija</label>
+                    <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl h-[58px]">
+                        <button 
+                            onClick={() => setEditingRule({...editingRule, action: 'hide'})}
+                            className={`flex-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${editingRule.action === 'hide' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-100'}`}
+                        >
+                            Sakrij
+                        </button>
+                        <button 
+                            onClick={() => setEditingRule({...editingRule, action: 'show'})}
+                            className={`flex-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${editingRule.action === 'show' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-100'}`}
+                        >
+                            Prikaži
+                        </button>
+                    </div>
                 </div>
               </div>
             </div>
@@ -331,7 +391,7 @@ const App = () => {
               <tr>
                 <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                 <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Kampanja</th>
-                <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Pravilo</th>
+                <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Pravilo (Logika)</th>
                 <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Akcija</th>
                 <th className="px-10 py-6 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Akcije</th>
               </tr>
@@ -348,8 +408,18 @@ const App = () => {
                   </td>
                   <td className="px-10 py-8 font-bold text-slate-900">{rule.name}</td>
                   <td className="px-10 py-8">
-                    <span className="text-[9px] font-black uppercase bg-slate-100 px-2 py-1 rounded text-slate-500 mr-2">{rule.targetKey}</span>
-                    <span className="text-[10px] font-bold text-indigo-600">"{rule.value}"</span>
+                    <div className="flex flex-wrap gap-1 items-center">
+                        {rule.conditions.map((c, i) => (
+                            <React.Fragment key={i}>
+                                <div className="text-[9px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                    <span className="font-black text-slate-400 uppercase mr-1">{c.targetKey}</span>
+                                    <span className="text-indigo-600">{OPERATORS.find(o => o.value === c.operator)?.label}</span>
+                                    <span className="font-bold ml-1">"{c.value}"</span>
+                                </div>
+                                {i < rule.conditions.length - 1 && <span className="text-[8px] font-black text-indigo-400 mx-1 uppercase">{rule.logicalOperator}</span>}
+                            </React.Fragment>
+                        ))}
+                    </div>
                   </td>
                   <td className="px-10 py-8">
                     <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${rule.action === 'show' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>

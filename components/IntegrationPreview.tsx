@@ -9,9 +9,9 @@ import React, { useState } from 'react';
     const [activeTab, setActiveTab] = useState<'json' | 'script'>('json');
     
     const configJson = JSON.stringify(rules.map(r => ({
-      key: r.targetKey,
-      op: r.operator,
-      val: r.value,
+      name: r.name,
+      conds: r.conditions,
+      lOp: r.logicalOperator,
       sel: r.targetElementSelector,
       act: r.action || 'hide'
     })), null, 2);
@@ -21,34 +21,29 @@ import React, { useState } from 'react';
     const meta = page_meta?.third_party_apps?.ntAds?.targeting;
     if (!meta) return;
   
+    const injectStyle = (sel, action) => {
+      const s = document.createElement('style');
+      const displayVal = action === 'show' ? 'block' : 'none';
+      const visibilityVal = action === 'show' ? 'visible' : 'hidden';
+      s.innerHTML = sel + ' { display: ' + displayVal + ' !important; visibility: ' + visibilityVal + ' !important; }';
+      document.head.appendChild(s);
+    };
+
     rules.forEach(rule => {
-      let match = false;
-      const actual = meta[rule.key];
-      
-      if (rule.op === 'equals') {
-        match = String(actual) === rule.val;
-      } else if (rule.op === 'contains') {
-        if (Array.isArray(actual)) {
-          match = actual.includes(rule.val);
-        } else if (typeof actual === 'string') {
-          match = actual.indexOf(rule.val) > -1;
+      const results = rule.conds.map(c => {
+        const actual = String(meta[c.targetKey] || '').toLowerCase().trim();
+        const val = c.value.toLowerCase().trim();
+        switch(c.operator) {
+          case 'equals': return actual === val;
+          case 'not_equals': return actual !== val;
+          case 'contains': return actual.indexOf(val) !== -1;
+          case 'not_contains': return actual.indexOf(val) === -1;
+          default: return false;
         }
-      }
-  
-      if (match) {
-        const el = document.querySelector(rule.sel);
-        if (el) {
-          if (rule.act === 'show') {
-            el.style.display = 'block';
-            el.style.visibility = 'visible';
-            el.style.pointerEvents = 'auto';
-          } else {
-            el.style.display = 'none';
-            el.style.visibility = 'hidden';
-            el.style.pointerEvents = 'none';
-          }
-        }
-      }
+      });
+
+      const match = rule.lOp === 'AND' ? results.every(r => r) : results.some(r => r);
+      if (match) injectStyle(rule.sel, rule.act);
     });
   })();`;
   
@@ -90,13 +85,6 @@ import React, { useState } from 'react';
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m-3 3h4" />
             </svg>
           </button>
-        </div>
-  
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Lokalna putanja</h4>
-          <p className="text-[11px] text-slate-700 break-all font-mono">
-            /exclusions/sponsorship_exclusions.js
-          </p>
         </div>
       </div>
     );
