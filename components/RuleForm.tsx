@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Operator, BlacklistRule, TargetingKey, ActionType } from '../types';
 import { TARGETING_KEYS, DEFAULT_SELECTORS } from '../constants';
@@ -11,25 +10,22 @@ interface RuleFormProps {
 
 export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData }) => {
   const [name, setName] = useState(initialData?.name || '');
-  // Fix: Access targetKey from the first condition in the conditions array (line 13 error fix)
   const [targetKey, setTargetKey] = useState<TargetingKey>(
     initialData?.conditions?.[0]?.targetKey || (initialData as any)?.targetKey || 'section'
   );
-  // Fix: Access operator from the first condition in the conditions array (line 14 error fix)
   const [operator, setOperator] = useState<Operator>(
     initialData?.conditions?.[0]?.operator || (initialData as any)?.operator || Operator.EQUALS
   );
-  // Fix: Access value from the first condition in the conditions array (line 15 error fix)
   const [value, setValue] = useState(
     initialData?.conditions?.[0]?.value || (initialData as any)?.value || ''
   );
   const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
   const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
+  const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
 
   useEffect(() => {
     if (initialData) {
       if (initialData.name) setName(initialData.name);
-      // Fix: Populate state from the first condition if available, with flat fallback for AI compatibility (line 22-24 errors fix)
       if (initialData.conditions && initialData.conditions[0]) {
         setTargetKey(initialData.conditions[0].targetKey);
         setOperator(initialData.conditions[0].operator);
@@ -42,24 +38,39 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       
       if (initialData.targetElementSelector) setSelector(initialData.targetElementSelector);
       if (initialData.action) setAction(initialData.action);
+      if (initialData.respectAdsEnabled !== undefined) setRespectAdsEnabled(initialData.respectAdsEnabled);
     }
   }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !value || !selector) return;
-    // Fix: Wrap the single condition into an array to match BlacklistRule interface requirements (line 35 error fix)
     onSubmit({
       name,
       conditions: [{ targetKey, operator, value: value.trim() }],
       logicalOperator: initialData?.logicalOperator || 'AND',
       targetElementSelector: selector,
-      action
+      action,
+      respectAdsEnabled
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="flex justify-between items-center mb-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+        <div>
+          <h4 className="text-xs font-black text-indigo-900 uppercase tracking-widest">Globalni Sigurnosni Filter</h4>
+          <p className="text-[10px] text-indigo-600 font-medium">Poštuj "Ads Enabled" flag s portala (AND logika)</p>
+        </div>
+        <button 
+          type="button"
+          onClick={() => setRespectAdsEnabled(!respectAdsEnabled)}
+          className={`w-12 h-6 rounded-full relative transition-all ${respectAdsEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+        >
+          <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${respectAdsEnabled ? 'left-7' : 'left-1'}`} />
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div className="col-span-full">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">1. Naziv kampanje (interni podsjetnik)</label>

@@ -74,7 +74,8 @@ const Sandbox = ({ rules }) => {
     top_section: 'sport',
     page_type: 'article',
     content_id: 'article:998877',
-    domain: 'gol.dnevnik.hr'
+    domain: 'gol.dnevnik.hr',
+    ads_enabled: 'true'
   });
 
   const checkCondition = (cond, data) => {
@@ -93,6 +94,9 @@ const Sandbox = ({ rules }) => {
   const activeMatches = useMemo(() => {
     return rules.filter(rule => {
       if (!rule.isActive) return false;
+      // Safety check: respectAdsEnabled
+      if (rule.respectAdsEnabled && String(mockData.ads_enabled) !== 'true') return false;
+      
       const results = rule.conditions.map(c => checkCondition(c, mockData));
       return rule.logicalOperator === 'AND' ? results.every(r => r) : results.some(r => r);
     });
@@ -164,18 +168,18 @@ const App = () => {
 
   const publish = async () => {
     setIsPublishing(true);
-    // Strogo filtriranje samo onih koji su isActive: true
+    // Filtriranje i formatiranje za Edge Engine
     const activeRules = rules.filter(r => !!r.isActive).map(r => ({
       name: r.name,
       conds: r.conditions,
       lOp: r.logicalOperator,
       sel: r.targetElementSelector,
-      act: r.action || 'hide'
+      act: r.action || 'hide',
+      rae: !!r.respectAdsEnabled // rae shorthand for respectAdsEnabled
     }));
 
     const commentOnly = `/* AdExclusion: No rules found */`;
 
-    // Ako nema aktivnih pravila, spremi samo komentar
     const script = activeRules.length === 0 
       ? commentOnly
       : `/** AdExclusion Live Engine | Generated: ${new Date().toISOString()} */
@@ -197,6 +201,9 @@ const App = () => {
     document.head.appendChild(s);
   };
   rules.forEach(rule => {
+    // Safety check: Respect Ads Enabled flag
+    if (rule.rae && targeting.ads_enabled !== true) return;
+    
     const results = rule.conds.map(c => {
       const actual = String(targeting[c.targetKey] || '').toLowerCase().trim();
       const val = c.value.toLowerCase().trim();
@@ -302,7 +309,7 @@ const App = () => {
             {isPublishing ? 'Sinkronizacija...' : '🚀 Objavi na Edge'}
           </button>
           <button 
-            onClick={() => { setEditingRule({ id: Math.random().toString(), name: '', conditions: [{ targetKey: 'section', operator: 'equals', value: '' }], logicalOperator: 'AND', targetElementSelector: '', action: 'hide', isActive: true }); setIsAdding(true); }} 
+            onClick={() => { setEditingRule({ id: Math.random().toString(), name: '', conditions: [{ targetKey: 'section', operator: 'equals', value: '' }], logicalOperator: 'AND', targetElementSelector: '', action: 'hide', isActive: true, respectAdsEnabled: true }); setIsAdding(true); }} 
             className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-[2px] font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
           >
             + Novo Pravilo
@@ -312,9 +319,21 @@ const App = () => {
       <main className="flex-1 max-w-6xl w-full mx-auto py-16 px-6">
         {isAdding && editingRule && (
           <div className="mb-12 bg-white p-10 rounded-[2.5rem] shadow-2xl border border-indigo-100 animate-in fade-in slide-in-from-top-4">
-            <h2 className="text-xl font-black uppercase tracking-tight mb-8">
-                {rules.some(r => r.id === editingRule.id) ? 'Uredi Pravilo' : 'Konfiguracija Pravila'}
-            </h2>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-xl font-black uppercase tracking-tight">
+                  {rules.some(r => r.id === editingRule.id) ? 'Uredi Pravilo' : 'Konfiguracija Pravila'}
+              </h2>
+              <div className="flex items-center gap-3 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100">
+                <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Poštuj "Ads Enabled" flag</span>
+                <button 
+                  onClick={() => setEditingRule({...editingRule, respectAdsEnabled: !editingRule.respectAdsEnabled})}
+                  className={`w-10 h-5 rounded-full relative transition-all ${editingRule.respectAdsEnabled ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                >
+                  <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-all ${editingRule.respectAdsEnabled ? 'left-6' : 'left-1'}`} />
+                </button>
+              </div>
+            </div>
+            
             <div className="space-y-6">
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Naziv Kampanje</label>
@@ -412,7 +431,12 @@ const App = () => {
                       <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${rule.isActive ? 'left-7' : 'left-1'}`} />
                     </button>
                   </td>
-                  <td className="px-10 py-8 font-bold text-slate-900">{rule.name}</td>
+                  <td className="px-10 py-8 font-bold text-slate-900">
+                    <div className="flex flex-col">
+                      <span>{rule.name}</span>
+                      {rule.respectAdsEnabled && <span className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter">🛡️ Ads Enabled Safety ON</span>}
+                    </div>
+                  </td>
                   <td className="px-10 py-8">
                     <div className="flex flex-wrap gap-1 items-center">
                         {rule.conditions.map((c, i) => (

@@ -47,6 +47,7 @@ export interface BlacklistRule {
   targetElementSelector: string;
   action: ActionType;
   isActive: boolean;
+  respectAdsEnabled: boolean;
   createdAt: number;
 }
 
