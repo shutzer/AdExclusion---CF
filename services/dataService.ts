@@ -1,5 +1,6 @@
 
 import { authService } from './authService.ts';
+import { MOCK_RULES } from './mockData.ts';
 
 const hostname = window.location.hostname;
 const IS_PROD = hostname.includes('pages.dev') || hostname.includes('dnevnik.hr');
@@ -9,19 +10,7 @@ export const dataService = {
   async getRules() {
     if (IS_DEV) {
       return {
-        rules: [
-          {
-            id: 'mock-1',
-            name: 'Mock: Heineken Euro 2026',
-            conditions: [{ targetKey: 'section', operator: 'equals', value: 'sport', caseSensitive: false }],
-            logicalOperator: 'AND',
-            targetElementSelector: '.bg-branding-main',
-            action: 'hide',
-            isActive: true,
-            respectAdsEnabled: true,
-            createdAt: Date.now()
-          }
-        ]
+        rules: MOCK_RULES
       };
     }
 

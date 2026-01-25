@@ -139,7 +139,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
                     onChange={(e) => updateCondition(index, { targetKey: e.target.value as TargetingKey })}
                     className="w-full h-full bg-slate-50 md:bg-white border border-slate-200 px-4 rounded-xl text-[12px] md:text-[11px] font-bold outline-none appearance-none cursor-pointer pr-10 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5"
                   >
-                    {TARGETING_KEYS.map(k => <option key={k.value} value={k.value}>{k.label.split(' ')[0]}</option>)}
+                    {TARGETING_KEYS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
                   </select>
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></div>
                 </div>

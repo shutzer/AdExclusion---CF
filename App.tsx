@@ -15,7 +15,7 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showDevTools, setShowDevTools] = useState(false);
-  const [showSandbox, setShowSandbox] = useState(false);
+  const [showSandbox, setShowSandbox] = useState(true);
   
   const formRef = useRef<HTMLDivElement>(null);
 

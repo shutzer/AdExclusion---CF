@@ -1,10 +1,18 @@
 
+// Added React, useState, and useMemo imports to fix "Cannot find name" errors
 import React, { useState, useMemo } from 'react';
-import { BlacklistRule, TargetingData, Operator } from '../types';
+import { BlacklistRule, TargetingData, Operator, Condition } from '../types';
 import { dataService } from '../services/dataService.ts';
+import { TARGETING_KEYS } from '../constants';
 
 interface SandboxProps {
   rules: BlacklistRule[];
+}
+
+interface ConditionResult {
+  success: boolean;
+  matches: string[];
+  cond: Condition;
 }
 
 export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
@@ -22,6 +30,59 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
     top_section: 'ostali-sportovi',
     ab_test: 'a_version'
   });
+
+  const checkCondition = (cond: Condition, data: TargetingData): ConditionResult => {
+    const isCS = !!cond.caseSensitive;
+    const processVal = (v: any) => isCS ? String(v || '').trim() : String(v || '').toLowerCase().trim();
+    
+    const inputValues = (cond.value || '').split(',').map(v => processVal(v));
+    const actualRaw = data[cond.targetKey as keyof TargetingData];
+    const isArrayField = Array.isArray(actualRaw);
+    
+    const actualItems = isArrayField 
+      ? (actualRaw as string[]).map(v => processVal(v))
+      : [processVal(actualRaw)];
+    
+    let matchedValues: string[] = [];
+
+    if (cond.operator === Operator.EQUALS) {
+      matchedValues = inputValues.filter(iv => actualItems.some(ai => ai === iv));
+      return { success: matchedValues.length > 0, matches: matchedValues, cond };
+    } else if (cond.operator === Operator.NOT_EQUALS) {
+      const failsEquality = inputValues.filter(iv => actualItems.some(ai => ai === iv));
+      return { success: failsEquality.length === 0, matches: [], cond };
+    } else if (cond.operator === Operator.CONTAINS) {
+      if (isArrayField) {
+        matchedValues = inputValues.filter(iv => actualItems.some(ai => ai === iv));
+      } else {
+        matchedValues = inputValues.filter(iv => actualItems.some(ai => ai.includes(iv)));
+      }
+      return { success: matchedValues.length > 0, matches: matchedValues, cond };
+    } else if (cond.operator === Operator.NOT_CONTAINS) {
+      const containsAny = inputValues.filter(iv => isArrayField ? actualItems.some(ai => ai === iv) : actualItems.some(ai => ai.includes(iv)));
+      return { success: containsAny.length === 0, matches: [], cond };
+    }
+    return { success: false, matches: [], cond };
+  };
+
+  const activeMatches = useMemo(() => {
+    return rules.filter(rule => {
+      if (!rule.isActive) return false;
+      const conditionResults = (rule.conditions || []).map(cond => checkCondition(cond, mockData));
+      if (conditionResults.length === 0) return false;
+      
+      const isSuccess = rule.logicalOperator === 'OR' 
+        ? conditionResults.some(r => r.success) 
+        : conditionResults.every(r => r.success);
+
+      if (isSuccess) {
+        // Spremanje detaljnih rezultata u privremeni property za render
+        (rule as any)._logicDebug = conditionResults;
+        return true;
+      }
+      return false;
+    });
+  }, [rules, mockData]);
 
   const handleImport = async () => {
     if (!importUrl || !importUrl.startsWith('http')) {
@@ -45,66 +106,22 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
     }
   };
 
-  const checkCondition = (cond: any, data: TargetingData) => {
-    const isCS = !!cond.caseSensitive;
-    const processVal = (v: any) => isCS ? String(v || '').trim() : String(v || '').toLowerCase().trim();
-    
-    const inputValues = (cond.value || '').split(',').map(v => processVal(v));
-    const actualRaw = data[cond.targetKey as keyof TargetingData];
-    const isArrayField = Array.isArray(actualRaw);
-    
-    const actualItems = isArrayField 
-      ? (actualRaw as string[]).map(v => processVal(v))
-      : [processVal(actualRaw)];
-    
-    let matchedValues: string[] = [];
-
-    if (cond.operator === Operator.EQUALS) {
-      matchedValues = inputValues.filter(iv => actualItems.some(ai => ai === iv));
-      return { success: matchedValues.length > 0, matches: matchedValues };
-    } else if (cond.operator === Operator.NOT_EQUALS) {
-      const failsEquality = inputValues.filter(iv => actualItems.some(ai => ai === iv));
-      return { success: failsEquality.length === 0, matches: [] };
-    } else if (cond.operator === Operator.CONTAINS) {
-      if (isArrayField) {
-        matchedValues = inputValues.filter(iv => actualItems.some(ai => ai === iv));
-      } else {
-        matchedValues = inputValues.filter(iv => actualItems.some(ai => ai.includes(iv)));
-      }
-      return { success: matchedValues.length > 0, matches: matchedValues };
-    } else if (cond.operator === Operator.NOT_CONTAINS) {
-      const containsAny = inputValues.filter(iv => isArrayField ? actualItems.some(ai => ai === iv) : actualItems.some(ai => ai.includes(iv)));
-      return { success: containsAny.length === 0, matches: [] };
-    }
-    return { success: false, matches: [] };
-  };
-
-  const activeMatches = useMemo(() => {
-    return rules.filter(rule => {
-      if (!rule.isActive) return false;
-      const conditionResults = (rule.conditions || []).map(cond => checkCondition(cond, mockData));
-      if (conditionResults.length === 0) return false;
-      const isSuccess = rule.logicalOperator === 'OR' ? conditionResults.some(r => r.success) : conditionResults.every(r => r.success);
-      if (isSuccess) {
-        (rule as any)._matchedValues = conditionResults.filter(r => r.success).flatMap(r => r.matches);
-        return true;
-      }
-      return false;
-    });
-  }, [rules, mockData]);
-
   const renderInputField = (key: keyof TargetingData) => {
     const val = mockData[key];
+    const label = TARGETING_KEYS.find(k => k.value === key)?.label || key.replace(/_/g, ' ');
+
     return (
       <div key={key} className="flex flex-col group">
-        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">{key.replace('_', ' ')}</label>
+        <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1 group-focus-within:text-indigo-600 transition-colors">
+          {label}
+        </label>
         <input
           type="text"
           value={Array.isArray(val) ? val.join(', ') : String(val)}
           onChange={(e) => {
             let newVal: any = e.target.value;
             if (key === 'keywords') newVal = e.target.value.split(',').map(s => s.trim());
-            else if (key === 'ads_enabled') newVal = e.target.value === 'true';
+            else if (key === 'ads_enabled') newVal = e.target.value === 'true' || e.target.value === '1';
             setMockData({ ...mockData, [key]: newVal });
           }}
           className="w-full text-sm h-12 px-4 border border-slate-200 bg-slate-50/50 rounded-xl outline-none font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner"
@@ -176,37 +193,76 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
           </div>
           
           {activeMatches.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {activeMatches.map(m => (
-                <div key={m.id} className="p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 relative shadow-2xl group transition-all hover:scale-[1.02]">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.6)]"></span>
-                      <h4 className="text-[11px] font-black uppercase tracking-widest truncate max-w-[150px]">{m.name}</h4>
+                <div key={m.id} className="bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-2xl overflow-hidden group transition-all hover:border-slate-700">
+                  {/* Card Header */}
+                  <div className="p-4 bg-slate-800/50 border-b border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3 truncate">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                      <h4 className="text-[11px] font-black uppercase tracking-widest truncate">{m.name}</h4>
                     </div>
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${m.action === 'hide' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${m.action === 'hide' ? 'bg-red-500 text-white' : 'bg-indigo-500 text-white'}`}>
                       {m.action}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {(m as any)._matchedValues?.map((val: string, i: number) => (
-                      <span key={i} className="px-2 py-1 bg-white/5 border border-white/10 text-indigo-300 rounded-md text-[9px] font-bold">MATCH: {val}</span>
-                    ))}
-                  </div>
-                  <div className="mt-auto">
-                    <code className="text-[10px] font-mono text-slate-400 block bg-black/40 p-3 rounded-xl border border-white/5 truncate group-hover:text-indigo-200 transition-colors">
-                      {m.targetElementSelector}
-                    </code>
+
+                  {/* Logic Visualization Section */}
+                  <div className="p-5 space-y-4">
+                    <div className="space-y-2">
+                      {(m as any)._logicDebug?.map((res: ConditionResult, idx: number) => (
+                        <React.Fragment key={idx}>
+                          <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${res.success ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-800/30 border-white/5 opacity-50'}`}>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${res.success ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-500'}`}>
+                              {res.success ? (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
+                              ) : (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" /></svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                               <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-[9px] font-black uppercase text-indigo-400 tracking-tighter">{res.cond.targetKey}</span>
+                                  <span className="text-[9px] font-bold text-slate-500 italic">{res.cond.operator}</span>
+                               </div>
+                               <div className="text-[11px] font-bold text-slate-200 truncate italic">"{res.cond.value}"</div>
+                            </div>
+                            {res.matches.length > 0 && (
+                              <div className="hidden sm:block text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+                                 MATCH FOUND
+                              </div>
+                            )}
+                          </div>
+                          {idx < (m as any)._logicDebug.length - 1 && (
+                            <div className="flex justify-center -my-1">
+                               <div className="bg-slate-700 text-[8px] font-black px-3 py-0.5 rounded-full border border-white/10 text-slate-400 shadow-sm z-10 uppercase tracking-widest">
+                                  {m.logicalOperator}
+                               </div>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+
+                    <div className="pt-2">
+                      <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Injection Point</div>
+                      <code className="text-[10px] font-mono text-indigo-300 block bg-black/40 p-3 rounded-xl border border-white/5 truncate group-hover:text-indigo-200 transition-colors">
+                        {m.targetElementSelector}
+                      </code>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/30">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-sm mb-4">
-                 <svg className="w-6 h-6 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/30">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-md mb-4 border border-slate-100">
+                 <svg className="w-7 h-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
               </div>
-              <p className="text-[11px] text-slate-300 font-black uppercase tracking-[0.2em] italic">Svi oglasni sustavi su trenutno dozvoljeni • Nema poklapanja</p>
+              <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em] italic max-w-sm mx-auto leading-loose">
+                Trenutni parametri ne aktiviraju niti jedno pravilo. <br/>
+                <span className="text-slate-300 font-bold">SVI OGLASNI SUSTAVI SU DOZVOLJENI.</span>
+              </p>
             </div>
           )}
         </div>

@@ -9,7 +9,8 @@ export const TARGETING_KEYS: { label: string; value: TargetingKey }[] = [
   { label: 'ID Članka (Content ID)', value: 'content_id' },
   { label: 'Puna adresa (URL)', value: 'description_url' },
   { label: 'Domena (Domain)', value: 'domain' },
-  { label: 'AB Test', value: 'ab_test' }
+  { label: 'AB Test', value: 'ab_test' },
+  { label: 'Oglasi (Ads Enabled)', value: 'ads_enabled' }
 ];
 
 export const OPERATORS = [

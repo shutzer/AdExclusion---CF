@@ -1,6 +1,7 @@
+
 import React from 'react';
-import { BlacklistRule, Operator } from '../types';
-import { TARGETING_KEYS, OPERATORS } from '../constants';
+import { BlacklistRule } from '../types';
+import { TARGETING_KEYS } from '../constants';
 
 interface RuleListProps {
   rules: BlacklistRule[];
@@ -28,7 +29,7 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle, o
           <tr>
             <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest w-[90px]">Status</th>
             <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest min-w-[240px]">Kampanja</th>
-            <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Targeting Context</th>
+            <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Targeting Context & Logic Flow</th>
             <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest w-[180px]">Selektor</th>
             <th className="px-6 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest w-[130px]">Upravljanje</th>
           </tr>
@@ -59,19 +60,38 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle, o
                     <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${rule.action === 'hide' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
                       {rule.action === 'hide' ? '🚫 SAKRIJ' : '✅ PRIKAŽI'}
                     </span>
-                    {rule.respectAdsEnabled && <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">ADS_REQ</span>}
+                    {rule.respectAdsEnabled && <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-1 rounded">ADS_REQ</span>}
                   </div>
                 </div>
               </td>
               <td className="px-6 py-3">
-                <div className="flex flex-wrap gap-1.5 max-w-[360px]">
-                  {rule.conditions.slice(0, 3).map((c, i) => (
-                    <div key={i} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
-                      <span className="text-[8px] font-black text-indigo-500 uppercase">{TARGETING_KEYS.find(k => k.value === c.targetKey)?.label.split(' ')[0] || c.targetKey}</span>
-                      <span className="text-[10px] font-bold text-slate-600 truncate max-w-[100px]">"{c.value}"</span>
-                    </div>
+                <div className="flex flex-wrap items-center gap-1.5 max-w-[450px]">
+                  {rule.conditions.slice(0, 4).map((c, i) => (
+                    <React.Fragment key={i}>
+                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                        <span className="text-[8px] font-black text-indigo-600 bg-slate-50 px-2 py-1 uppercase tracking-tighter border-r border-slate-100">
+                          {TARGETING_KEYS.find(k => k.value === c.targetKey)?.label.split(' (*.)')[1] || c.targetKey}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-700 px-2 py-1 truncate max-w-[120px] italic">
+                          "{c.value}"
+                        </span>
+                      </div>
+                      
+                      {/* Logic Bridge between items */}
+                      {i < rule.conditions.length - 1 && i < 3 && (
+                        <div className="px-1.5 flex items-center justify-center">
+                          <span className="text-[8px] font-black text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded-full border border-slate-100 uppercase tracking-tighter">
+                            {rule.logicalOperator}
+                          </span>
+                        </div>
+                      )}
+                    </React.Fragment>
                   ))}
-                  {rule.conditions.length > 3 && <span className="text-[9px] font-black text-slate-300 self-center">+ {rule.conditions.length - 3}</span>}
+                  {rule.conditions.length > 4 && (
+                    <span className="text-[9px] font-black text-indigo-400 self-center bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 ml-1">
+                      + {rule.conditions.length - 4} JOŠ
+                    </span>
+                  )}
                 </div>
               </td>
               <td className="px-6 py-3">
