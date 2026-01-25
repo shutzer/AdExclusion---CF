@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,18 +24,18 @@
           .replace(/import\s+React\s+from\s+['"]react['"];?/g, '')
           .replace(/import\s+{([^}]*)}\s+from\s+['"]react['"];?/g, 'const {$1} = window.React;')
           .replace(/import\s+{([^}]*)}\s+from\s+['"]@google\/genai['"];?/g, 'const {$1} = window.genAI;')
-          // Services
-          .replace(/import\s+{[^}]*authService[^}]*}\s+from\s+['"]\.\/.*authService\.ts['"];?/g, 'const { authService } = window.AuthModule;')
-          .replace(/import\s+{[^}]*dataService[^}]*}\s+from\s+['"]\.\/.*dataService\.ts['"];?/g, 'const { dataService } = window.DataModule;')
-          // Shared logic (Types and Constants) - Support both ./ and ../
+          // Services - Updated regex to support both ./ and ../
+          .replace(/import\s+{[^}]*authService[^}]*}\s+from\s+['"]\.\.?\/.*authService\.ts['"];?/g, 'const { authService } = window.AuthModule;')
+          .replace(/import\s+{[^}]*dataService[^}]*}\s+from\s+['"]\.\.?\/.*dataService\.ts['"];?/g, 'const { dataService } = window.DataModule;')
+          // Shared logic (Types and Constants)
           .replace(/import\s+{[^}]*}\s+from\s+['"]\.\.?\/types(\.ts)?['"];?/g, (m) => `const {${m.match(/{([^}]*)}/)[1]}} = window.TypesModule;`)
           .replace(/import\s+{[^}]*}\s+from\s+['"]\.\.?\/constants(\.ts)?['"];?/g, (m) => `const {${m.match(/{([^}]*)}/)[1]}} = window.ConstantsModule;`)
-          // Components
-          .replace(/import\s+{[^}]*RuleForm[^}]*}\s+from\s+['"]\.\/components\/RuleForm\.tsx['"];?/g, 'const { RuleForm } = window.RuleFormModule;')
-          .replace(/import\s+{[^}]*RuleList[^}]*}\s+from\s+['"]\.\/components\/RuleList\.tsx['"];?/g, 'const { RuleList } = window.RuleListModule;')
-          .replace(/import\s+{[^}]*IntegrationPreview[^}]*}\s+from\s+['"]\.\/components\/IntegrationPreview\.tsx['"];?/g, 'const { IntegrationPreview } = window.IntegrationModule;')
-          .replace(/import\s+{[^}]*Sandbox[^}]*}\s+from\s+['"]\.\/components\/Sandbox\.tsx['"];?/g, 'const { Sandbox } = window.SandboxModule;')
-          // Remove remaining local imports (handle both ./ and ../)
+          // Components - Updated regex to be more flexible with paths
+          .replace(/import\s+{[^}]*RuleForm[^}]*}\s+from\s+['"]\.\.?\/.*RuleForm\.tsx['"];?/g, 'const { RuleForm } = window.RuleFormModule;')
+          .replace(/import\s+{[^}]*RuleList[^}]*}\s+from\s+['"]\.\.?\/.*RuleList\.tsx['"];?/g, 'const { RuleList } = window.RuleListModule;')
+          .replace(/import\s+{[^}]*IntegrationPreview[^}]*}\s+from\s+['"]\.\.?\/.*IntegrationPreview\.tsx['"];?/g, 'const { IntegrationPreview } = window.IntegrationModule;')
+          .replace(/import\s+{[^}]*Sandbox[^}]*}\s+from\s+['"]\.\.?\/.*Sandbox\.tsx['"];?/g, 'const { Sandbox } = window.SandboxModule;')
+          // Remove remaining local imports
           .replace(/import\s+.*\s+from\s+['"]\.\.?\/[^'"]*['"];?/g, '');
 
         return Babel.transform(code, {
