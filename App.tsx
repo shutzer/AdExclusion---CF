@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from './services/authService.ts';
 import { dataService } from './services/dataService.ts';
@@ -57,56 +58,20 @@ const App = () => {
       active: r.isActive
     })).filter(r => r.active);
 
-    const configJson = JSON.stringify(config, null, 2);
+    const configJson = JSON.stringify(config);
 
-    return `/* Auto-generated AdExclusion Script - DNEVNIK.hr */
-(function() {
-  const rules = ${configJson.replace(/\n/g, '\n  ')};
-  const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
-  if (!targeting) return;
-
-  const injectStyle = (sel, action) => {
-    const s = document.createElement('style');
-    const displayVal = action === 'show' ? 'block' : 'none';
-    const visibilityVal = action === 'show' ? 'visible' : 'hidden';
-    s.innerHTML = sel + ' { display: ' + displayVal + ' !important; visibility: ' + visibilityVal + ' !important; }';
-    document.head.appendChild(s);
-  };
-
-  rules.forEach(rule => {
-    if (rule.rae && targeting.ads_enabled !== true) return;
-
-    const results = rule.conds.map(c => {
-      const actualRaw = targeting[c.targetKey];
-      const actualItems = Array.isArray(actualRaw) 
-        ? actualRaw.map(v => String(v).toLowerCase().trim())
-        : [String(actualRaw || '').toLowerCase().trim()];
-        
-      const inputValues = c.value.split(',').map(v => v.trim().toLowerCase());
-      
-      switch(c.operator) {
-        case 'equals': 
-          return inputValues.some(iv => actualItems.some(ai => ai === iv));
-        case 'not_equals': 
-          return inputValues.every(iv => actualItems.every(ai => ai !== iv));
-        case 'contains': 
-          return inputValues.some(iv => actualItems.some(ai => ai.indexOf(iv) !== -1));
-        case 'not_contains': 
-          return inputValues.every(iv => actualItems.every(ai => ai.indexOf(iv) === -1));
-        default: return false;
-      }
-    });
-
-    const match = rule.lOp === 'AND' ? results.every(r => r) : results.some(r => r);
-    if (match) injectStyle(rule.sel, rule.act);
-  });
-})();`;
+    // Minified Production Script
+    // Removes newlines, spaces, comments and shortens variable names for bandwidth optimization.
+    return `!function(){try{const e=${configJson},t=page_meta?.third_party_apps?.ntAds?.targeting;if(t){const n=(e,t)=>{const n=document.createElement("style"),r="show"===t?"block":"none",a="show"===t?"visible":"hidden";n.innerHTML=e+" { display: "+r+" !important; visibility: "+a+" !important; }",document.head.appendChild(n)};e.forEach((e=>{if((!e.rae||!0===t.ads_enabled)){const r=e.conds.map((e=>{const n=t[e.targetKey],r=Array.isArray(n)?n.map((e=>String(e).toLowerCase().trim())):[String(n||"").toLowerCase().trim()],a=e.value.split(",").map((e=>e.trim().toLowerCase()));switch(e.operator){case"equals":return a.some((e=>r.some((n=>n===e))));case"not_equals":return a.every((e=>r.every((n=>n!==e))));case"contains":return a.some((e=>r.some((n=>-1!==n.indexOf(e)))));case"not_contains":return a.every((e=>r.every((n=>-1===n.indexOf(e)))));default:return!1}})),a="AND"===e.lOp?r.every((e=>e)):r.some((e=>e));a&&n(e.sel,e.act)}}))}}catch(e){console.error("AdExclusion:",e)}}();`;
   };
 
   const publish = async () => {
     if (!confirm('Jeste li sigurni da želite objaviti trenutna pravila na produkciju?')) return;
     setIsPublishing(true);
+    
+    // Generiramo minificiranu skriptu za Edge
     const script = generateProductionScript(rules);
+    
     try {
       await dataService.saveRules(rules, script);
       await dataService.purgeCache();
