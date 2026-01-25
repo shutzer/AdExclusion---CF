@@ -30,12 +30,12 @@ export const onRequestPost: PagesFunction = async (context) => {
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'AdExclusion-Bot/2.0 (Edge Scraper)'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 AdExclusionBot/3.0'
       }
     });
 
     if (!response.ok) {
-      return new Response(JSON.stringify({ success: false, message: "Portal nije dostupan" }), {
+      return new Response(JSON.stringify({ success: false, message: `Portal nije dostupan (Status ${response.status})` }), {
         status: 502,
         headers: { "Content-Type": "application/json" }
       });
@@ -43,53 +43,75 @@ export const onRequestPost: PagesFunction = async (context) => {
 
     const html = await response.text();
     
-    // Regex ekstrakcija page_meta objekta
-    // Tražimo blok koji sadrži page_meta = { ... }
-    const metaRegex = /page_meta\s*=\s*({[\s\S]*?});/;
-    const match = html.match(metaRegex);
+    // OPTIMIZACIJA: Tražimo 'targeting' ključ direktno bez parsiranja cijelog HTML-a
+    // Tražimo "targeting": { ili targeting: {
+    const targetingIndex = html.indexOf('"targeting":');
+    const fallbackIndex = html.indexOf('targeting:');
+    const startIndex = targetingIndex !== -1 ? targetingIndex : fallbackIndex;
 
-    if (!match || !match[1]) {
-      return new Response(JSON.stringify({ success: false, message: "Nisu pronađeni targeting podaci na stranici" }), {
+    if (startIndex === -1) {
+       return new Response(JSON.stringify({ success: false, message: "Na stranici nije pronađen 'targeting' blok" }), {
         status: 404,
         headers: { "Content-Type": "application/json" }
       });
     }
 
-    // Čišćenje JSON-a (ponekad JS objekti nisu validni JSON-ovi direktno)
-    // Za ovaj alat pretpostavljamo da je struktura konzistentna
-    try {
-      const pageMeta = JSON.parse(match[1]);
-      const targeting = pageMeta?.third_party_apps?.ntAds?.targeting || {};
-      
-      // Mapiranje na naš TargetingData format
-      const extractedData = {
-        site: targeting.site || "",
-        keywords: Array.isArray(targeting.keywords) ? targeting.keywords : (targeting.keywords ? [targeting.keywords] : []),
-        description_url: url,
-        ads_enabled: targeting.ads_enabled !== false,
-        page_type: targeting.page_type || "",
-        content_id: targeting.content_id || "",
-        domain: urlObj.hostname,
-        section: targeting.section || "",
-        top_section: targeting.top_section || "",
-        ab_test: targeting.ab_test || ""
-      };
+    // Uzimamo idućih 2000 znakova (dovoljno za targeting objekt, štedi CPU)
+    const contextSnippet = html.substring(startIndex, startIndex + 2500);
 
-      return new Response(JSON.stringify({ success: true, data: extractedData }), {
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        }
-      });
-    } catch (e) {
-      return new Response(JSON.stringify({ success: false, message: "Greška pri parsiranju metapodataka" }), {
-        status: 500,
+    // Helper za čupanje vrijednosti pomoću mini-regexa na malom stringu
+    const extractField = (field: string) => {
+      const regex = new RegExp(`['"]?${field}['"]?\\s*:\\s*['"]([^'"]*)['"]`);
+      const match = contextSnippet.match(regex);
+      return match ? match[1] : "";
+    };
+
+    // Poseban helper za keywords (podržava nizove)
+    const extractKeywords = () => {
+      const regex = /keywords\s*:\s*\[([\s\S]*?)\]/;
+      const match = contextSnippet.match(regex);
+      if (!match) return [];
+      return match[1]
+        .split(',')
+        .map(k => k.replace(/['"\s\[\]]/g, ''))
+        .filter(k => k.length > 0);
+    };
+
+    // Detekcija oglasa
+    const adsEnabled = !contextSnippet.includes('ads_enabled: false') && 
+                       !contextSnippet.includes('"ads_enabled": false') &&
+                       !contextSnippet.includes('ads_enabled:false');
+
+    const extractedData = {
+      site: extractField('site'),
+      keywords: extractKeywords(),
+      description_url: url,
+      ads_enabled: adsEnabled,
+      page_type: extractField('page_type'),
+      content_id: extractField('content_id'),
+      domain: urlObj.hostname,
+      section: extractField('section'),
+      top_section: extractField('top_section'),
+      ab_test: extractField('ab_test')
+    };
+
+    // Validacija - ako nismo našli ni site ni rubriku, nešto nije u redu
+    if (!extractedData.site && !extractedData.section) {
+       return new Response(JSON.stringify({ success: false, message: "Podaci pronađeni, ali format je nepoznat" }), {
+        status: 422,
         headers: { "Content-Type": "application/json" }
       });
     }
 
+    return new Response(JSON.stringify({ success: true, data: extractedData }), {
+      headers: { 
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
+    });
+
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: String(err) }), {
+    return new Response(JSON.stringify({ success: false, message: "Greška pri obradi podataka", error: String(err) }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
