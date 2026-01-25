@@ -32,7 +32,6 @@
           // Components
           .replace(/import\s+{[^}]*RuleForm[^}]*}\s+from\s+['"]\.\/components\/RuleForm\.tsx['"];?/g, 'const { RuleForm } = window.RuleFormModule;')
           .replace(/import\s+{[^}]*RuleList[^}]*}\s+from\s+['"]\.\/components\/RuleList\.tsx['"];?/g, 'const { RuleList } = window.RuleListModule;')
-          .replace(/import\s+{[^}]*AIAssistant[^}]*}\s+from\s+['"]\.\/components\/AIAssistant\.tsx['"];?/g, 'const { AIAssistant } = window.AIAssistantModule;')
           .replace(/import\s+{[^}]*IntegrationPreview[^}]*}\s+from\s+['"]\.\/components\/IntegrationPreview\.tsx['"];?/g, 'const { IntegrationPreview } = window.IntegrationModule;')
           .replace(/import\s+{[^}]*Sandbox[^}]*}\s+from\s+['"]\.\/components\/Sandbox\.tsx['"];?/g, 'const { Sandbox } = window.SandboxModule;')
           // Remove remaining local imports (handle both ./ and ../)
@@ -76,7 +75,6 @@
           // Load components
           await loadModule('RuleFormModule', './components/RuleForm.tsx');
           await loadModule('RuleListModule', './components/RuleList.tsx');
-          await loadModule('AIAssistantModule', './components/AIAssistant.tsx');
           await loadModule('IntegrationModule', './components/IntegrationPreview.tsx');
           await loadModule('SandboxModule', './components/Sandbox.tsx');
 

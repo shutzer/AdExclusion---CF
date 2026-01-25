@@ -12,61 +12,90 @@ interface RuleListProps {
 export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle, onEdit }) => {
   if (rules.length === 0) {
     return (
-      <div className="p-12 text-center bg-slate-50/20">
-        <h3 className="text-slate-400 font-black uppercase text-[9px] tracking-widest">Nema pravila u bazi</h3>
+      <div className="p-16 text-center bg-slate-50/20">
+        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
+           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        </div>
+        <h3 className="text-slate-400 font-black uppercase text-[10px] tracking-[0.2em]">Baza pravila je prazna</h3>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto custom-scrollbar">
       <table className="min-w-full divide-y divide-slate-100">
         <thead className="bg-slate-50/50">
           <tr>
-            <th className="px-6 py-3 text-left text-[8px] font-black text-slate-400 uppercase tracking-widest w-16">Status</th>
-            <th className="px-6 py-3 text-left text-[8px] font-black text-slate-400 uppercase tracking-widest">Kampanja</th>
-            <th className="px-6 py-3 text-left text-[8px] font-black text-slate-400 uppercase tracking-widest">Targeting</th>
-            <th className="px-6 py-3 text-left text-[8px] font-black text-slate-400 uppercase tracking-widest">Selektor</th>
-            <th className="px-6 py-3 text-right text-[8px] font-black text-slate-400 uppercase tracking-widest">Akcije</th>
+            <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest w-[90px]">Status</th>
+            <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest min-w-[240px]">Kampanja</th>
+            <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Targeting Context</th>
+            <th className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest w-[180px]">Selektor</th>
+            <th className="px-6 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest w-[130px]">Upravljanje</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-slate-100">
           {rules.map((rule) => (
-            <tr key={rule.id} className="hover:bg-slate-50/30 transition-all group">
+            <tr key={rule.id} className="hover:bg-slate-50 transition-all group">
               <td className="px-6 py-3">
                 <button 
-                  onClick={() => onToggle(rule.id)}
-                  className={`w-8 h-4 rounded-full relative transition-all ${rule.isActive ? 'bg-green-500' : 'bg-slate-200'}`}
-                >
-                  <div className={`w-2.5 h-2.5 bg-white rounded-full absolute top-[3px] transition-all ${rule.isActive ? 'left-5' : 'left-0.5'}`} />
-                </button>
+                    onClick={() => onToggle(rule.id)}
+                    type="button"
+                    title={rule.isActive ? "Deaktiviraj" : "Aktiviraj"}
+                    className={`w-11 h-6 rounded-full relative transition-all duration-300 shadow-inner focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-100 ${
+                      rule.isActive 
+                        ? 'bg-emerald-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]' 
+                        : 'bg-slate-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all duration-300 shadow-md transform ${
+                      rule.isActive ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
               </td>
               <td className="px-6 py-3">
-                <div className="text-[11px] font-black text-slate-900 tracking-tight">{rule.name}</div>
-                <div className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">
-                  {rule.action === 'hide' ? '🚫 SAKRIJ' : '✅ PRIKAŽI'}
+                <div className="flex flex-col">
+                  <span className="text-[13px] font-black text-slate-800 tracking-tight truncate max-w-[220px]">{rule.name}</span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${rule.action === 'hide' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
+                      {rule.action === 'hide' ? '🚫 SAKRIJ' : '✅ PRIKAŽI'}
+                    </span>
+                    {rule.respectAdsEnabled && <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">ADS_REQ</span>}
+                  </div>
                 </div>
               </td>
               <td className="px-6 py-3">
-                <div className="flex flex-col gap-0.5">
-                  {rule.conditions.slice(0, 2).map((c, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <span className="text-[7px] font-black text-indigo-500 uppercase">{TARGETING_KEYS.find(k => k.value === c.targetKey)?.label.split(' ')[0] || c.targetKey}</span>
-                      <span className="text-[9px] font-bold text-slate-600 truncate max-w-[150px]">"{c.value}"</span>
+                <div className="flex flex-wrap gap-1.5 max-w-[360px]">
+                  {rule.conditions.slice(0, 3).map((c, i) => (
+                    <div key={i} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
+                      <span className="text-[8px] font-black text-indigo-500 uppercase">{TARGETING_KEYS.find(k => k.value === c.targetKey)?.label.split(' ')[0] || c.targetKey}</span>
+                      <span className="text-[10px] font-bold text-slate-600 truncate max-w-[100px]">"{c.value}"</span>
                     </div>
                   ))}
+                  {rule.conditions.length > 3 && <span className="text-[9px] font-black text-slate-300 self-center">+ {rule.conditions.length - 3}</span>}
                 </div>
               </td>
               <td className="px-6 py-3">
-                <code className="text-[8px] font-mono bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded">{rule.targetElementSelector}</code>
+                <code className="text-[10px] font-mono bg-slate-50 text-slate-500 px-2 py-1 rounded-lg border border-slate-200 block truncate max-w-[160px] shadow-sm">
+                  {rule.targetElementSelector}
+                </code>
               </td>
-              <td className="px-6 py-3 text-right space-x-1 opacity-0 group-hover:opacity-100 transition-all">
-                <button onClick={() => onEdit(rule)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                </button>
-                <button onClick={() => onDelete(rule.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
+              <td className="px-6 py-3 text-right">
+                <div className="flex items-center justify-end gap-2">
+                  <button 
+                    onClick={() => onEdit(rule)} 
+                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition-all"
+                    title="Uredi"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                  </button>
+                  <button 
+                    onClick={() => onDelete(rule.id)} 
+                    className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition-all"
+                    title="Obriši"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

@@ -29,7 +29,7 @@ const App = () => {
 
   useEffect(() => {
     if ((isAdding || editingRule) && formRef.current) {
-      const headerOffset = 100;
+      const headerOffset = 80;
       const elementPosition = formRef.current.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
 
@@ -45,14 +45,75 @@ const App = () => {
     try { await dataService.saveRules(newRules); } catch (e) { console.error(e); }
   };
 
+  const generateProductionScript = (rulesToPublish: BlacklistRule[]) => {
+    const config = rulesToPublish.map(r => ({
+      name: r.name,
+      conds: r.conditions,
+      lOp: r.logicalOperator,
+      sel: r.targetElementSelector,
+      act: r.action || 'hide',
+      rae: !!r.respectAdsEnabled,
+      active: r.isActive
+    })).filter(r => r.active);
+
+    const configJson = JSON.stringify(config, null, 2);
+
+    return `/* Auto-generated AdExclusion Script - DNEVNIK.hr */
+(function() {
+  const rules = ${configJson.replace(/\n/g, '\n  ')};
+  const targeting = window.page_meta?.third_party_apps?.ntAds?.targeting;
+  if (!targeting) return;
+
+  const injectStyle = (sel, action) => {
+    const s = document.createElement('style');
+    const displayVal = action === 'show' ? 'block' : 'none';
+    const visibilityVal = action === 'show' ? 'visible' : 'hidden';
+    s.innerHTML = sel + ' { display: ' + displayVal + ' !important; visibility: ' + visibilityVal + ' !important; }';
+    document.head.appendChild(s);
+  };
+
+  rules.forEach(rule => {
+    if (rule.rae && targeting.ads_enabled !== true) return;
+
+    const results = rule.conds.map(c => {
+      const actualRaw = targeting[c.targetKey];
+      const actualItems = Array.isArray(actualRaw) 
+        ? actualRaw.map(v => String(v).toLowerCase().trim())
+        : [String(actualRaw || '').toLowerCase().trim()];
+        
+      const inputValues = c.value.split(',').map(v => v.trim().toLowerCase());
+      
+      switch(c.operator) {
+        case 'equals': 
+          return inputValues.some(iv => actualItems.some(ai => ai === iv));
+        case 'not_equals': 
+          return inputValues.every(iv => actualItems.every(ai => ai !== iv));
+        case 'contains': 
+          return inputValues.some(iv => actualItems.some(ai => ai.indexOf(iv) !== -1));
+        case 'not_contains': 
+          return inputValues.every(iv => actualItems.every(ai => ai.indexOf(iv) === -1));
+        default: return false;
+      }
+    });
+
+    const match = rule.lOp === 'AND' ? results.every(r => r) : results.some(r => r);
+    if (match) injectStyle(rule.sel, rule.act);
+  });
+})();`;
+  };
+
   const publish = async () => {
+    if (!confirm('Jeste li sigurni da želite objaviti trenutna pravila na produkciju?')) return;
     setIsPublishing(true);
-    const script = `/* Auto-generated AdExclusion Script */\n(function(){ /* prod logic */ })();`;
+    const script = generateProductionScript(rules);
     try {
       await dataService.saveRules(rules, script);
       await dataService.purgeCache();
-      alert('🚀 USPJEH! Pravila su objavljena na Edge.');
-    } catch (e) { alert('Greška pri objavljivanju.'); } 
+      alert('🚀 USPJEH! Pravila su objavljena na Edge (Cloudflare KV).');
+    } catch (e) { 
+      alert('Greška pri objavljivanju.'); 
+      console.error(e);
+    } 
     finally { setIsPublishing(false); }
   };
 
@@ -77,33 +138,33 @@ const App = () => {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 pb-16">
-      <header className="bg-white border-b border-slate-100 h-16 px-8 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900">
+      <header className="bg-white border-b border-slate-200 h-16 px-8 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="bg-[#b71918] text-white p-2 px-4 font-black uppercase text-base italic rounded-sm tracking-tighter">
+          <div className="bg-[#b71918] text-white p-2 px-4 font-black uppercase text-base italic rounded shadow-sm tracking-tighter select-none">
             DNEVNIK.hr
           </div>
-          <div className="h-5 w-px bg-slate-100"></div>
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Ad Exclusion Engine</span>
+          <div className="h-4 w-px bg-slate-200"></div>
+          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 select-none">Ad Exclusion Engine</span>
         </div>
         
         <div className="flex items-center gap-3">
-          <button onClick={publish} disabled={isPublishing} className="bg-[#24b45d] text-white px-5 py-2.5 font-black text-[9px] uppercase tracking-widest transition-all hover:bg-green-700 disabled:opacity-50 rounded-lg flex items-center gap-2">
+          <button onClick={publish} disabled={isPublishing} className="bg-emerald-600 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-700 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm">
             🚀 {isPublishing ? 'PUBLISHING...' : 'OBJAVI NA EDGE'}
           </button>
-          <button onClick={() => { setEditingRule(null); setIsAdding(true); }} className="bg-[#0f172a] text-white px-5 py-2.5 font-black text-[9px] uppercase tracking-widest transition-all hover:bg-slate-800 rounded-lg">
+          <button onClick={() => { setEditingRule(null); setIsAdding(true); }} className="bg-slate-900 text-white px-5 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-black rounded-lg shadow-sm">
             + NOVO PRAVILO
           </button>
-          <button onClick={() => { authService.logout(); setIsAuthenticated(false); }} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+          <button onClick={() => { authService.logout(); setIsAuthenticated(false); }} className="p-2 text-slate-400 hover:text-red-500 transition-colors bg-slate-50 border border-slate-200 rounded-lg">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto py-6 px-8 space-y-4">
-        {/* Forma (Novo/Edit) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto py-5 px-8 space-y-4">
+        {/* Editor Section */}
         {(isAdding || editingRule) && (
-          <div ref={formRef} className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div ref={formRef} className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 animate-in fade-in slide-in-from-top-4 duration-400">
             <RuleForm 
               initialData={editingRule || {}}
               onSubmit={handleFormSubmit}
@@ -112,8 +173,8 @@ const App = () => {
           </div>
         )}
 
-        {/* Lista Pravila */}
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        {/* Rules Table Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <RuleList 
             rules={rules} 
             onEdit={(rule) => { setEditingRule(rule); setIsAdding(true); }}
@@ -122,29 +183,54 @@ const App = () => {
           />
         </div>
 
-        {/* Sandbox (Edge Simulator) - Always Visible */}
+        {/* Simulation Section */}
         <Sandbox rules={rules} />
 
-        {/* Dev Tools - Full Width JS Code */}
-        <div className="pt-4">
+        {/* Technical Details Section */}
+        <div className="pt-2">
           <button 
             onClick={() => setShowDevTools(!showDevTools)}
-            className="flex items-center gap-2 text-[9px] font-black uppercase text-slate-400 tracking-widest hover:text-indigo-600 transition-all mb-3"
+            className="flex items-center gap-3 text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-indigo-600 transition-all mb-3 px-2 group"
           >
-            <div className={`w-5 h-5 rounded bg-white border border-slate-200 flex items-center justify-center transition-transform ${showDevTools ? 'rotate-180' : ''}`}>
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            <div className={`w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all group-hover:border-indigo-200 ${showDevTools ? 'rotate-180 bg-indigo-50 border-indigo-200 text-indigo-600' : ''}`}>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
             </div>
-            Integracijski Detalji
+            Integracijski Detalji & JS Kod
           </button>
 
           {showDevTools && (
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 animate-in slide-in-from-bottom-2 duration-300">
-              <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-4 px-2">JS Integracijski Kod (Full-view)</h3>
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-in slide-in-from-bottom-2 duration-300">
+              <h3 className="text-[11px] font-black uppercase text-slate-500 tracking-widest mb-4 px-1 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span>
+                Pravila u realnom vremenu (Live JS Engine)
+              </h3>
               <IntegrationPreview rules={rules} />
             </div>
           )}
         </div>
       </main>
+
+      <footer className="mt-auto border-t border-slate-200 bg-white py-6 px-8">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.5.0 STABLE</div>
+            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d. • AdOps & Engineering</p>
+          </div>
+          <div className="flex gap-10">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Edge Cluster</span>
+              <span className="text-[11px] font-bold text-emerald-600 uppercase flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> 
+                Live & Healthy
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Auth Scope</span>
+              <span className="text-[11px] font-bold text-slate-600 uppercase">Cloudflare KV Session</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
@@ -172,26 +258,26 @@ const LoginForm = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-      <div className="w-full max-w-sm bg-white rounded-3xl p-10 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-[#b71918]"></div>
-        <div className="flex justify-center mb-8">
-          <div className="bg-[#b71918] p-3 px-5 inline-block rounded-sm">
-             <span className="text-white font-black text-lg tracking-tighter italic">DNEVNIK.hr</span>
+      <div className="w-full max-w-sm bg-white rounded-2xl p-10 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-[#b71918]"></div>
+        <div className="flex justify-center mb-10">
+          <div className="bg-[#b71918] p-4 px-6 inline-block rounded shadow-xl transform -rotate-1">
+             <span className="text-white font-black text-xl tracking-tighter italic select-none">DNEVNIK.hr</span>
           </div>
         </div>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Korisnik</label>
-            <input type="text" value={user} onChange={e => setUser(e.target.value)} disabled={isLoggingIn} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-lg font-bold outline-none focus:ring-2 focus:ring-red-600" />
+            <label className="text-[11px] font-black uppercase text-slate-500 mb-2 block tracking-widest">System User</label>
+            <input type="text" value={user} onChange={e => setUser(e.target.value)} disabled={isLoggingIn} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-red-600 transition-all text-sm shadow-inner" />
           </div>
           <div>
-            <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Lozinka</label>
-            <input type="password" value={pass} onChange={e => setPass(e.target.value)} disabled={isLoggingIn} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-lg font-bold outline-none focus:ring-2 focus:ring-red-600" />
+            <label className="text-[11px] font-black uppercase text-slate-500 mb-2 block tracking-widest">Secret Key</label>
+            <input type="password" value={pass} onChange={e => setPass(e.target.value)} disabled={isLoggingIn} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-red-600 transition-all text-sm shadow-inner" />
           </div>
-          <button type="submit" disabled={isLoggingIn} className="w-full bg-[#0f172a] text-white p-4 rounded-lg font-black text-[9px] uppercase tracking-widest mt-4">
-            {isLoggingIn ? 'PROVJERA...' : 'PRIJAVI SE'}
+          <button type="submit" disabled={isLoggingIn} className="w-full bg-slate-900 text-white p-5 rounded-xl font-black text-[11px] uppercase tracking-widest mt-4 shadow-xl hover:bg-black active:scale-[0.98] transition-all">
+            {isLoggingIn ? 'AUTHENTICATING...' : 'SECURE LOGIN'}
           </button>
-          {error && <p className="text-center text-red-600 text-[9px] font-black uppercase mt-4 tracking-widest">{error}</p>}
+          {error && <p className="text-center text-red-600 text-[11px] font-black uppercase mt-6 tracking-widest leading-relaxed px-4">{error}</p>}
         </form>
       </div>
     </div>
