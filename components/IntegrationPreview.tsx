@@ -19,77 +19,76 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
     js: r.customJs ? r.customJs : undefined
   })), null, 2);
 
+  // Reflects the new robust implementation from App.tsx
   const scriptCode = `(function() {
-  const rules = ${configJson.replace(/\n/g, '\n  ')};
-  const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
-  if (!targeting) return;
-
-  const injectStyle = (sel, action) => {
-    const s = document.createElement('style');
-    const displayVal = action === 'show' ? 'block' : 'none';
-    const visibilityVal = action === 'show' ? 'visible' : 'hidden';
-    s.innerHTML = sel + ' { display: ' + displayVal + ' !important; visibility: ' + visibilityVal + ' !important; }';
-    document.head.appendChild(s);
-  };
-  
-  const safeRunJs = (code, ctx, selector) => {
-    if(!code) return;
-    try {
-      new Function('ctx', 'selector', code)(ctx, selector);
-    } catch(e) {
-      console.warn('AdExclusion JS Error:', e);
-    }
-  };
-
-  rules.forEach(rule => {
-    if (rule.rae && targeting.ads_enabled !== true) return;
-
-    const results = rule.conds.map(c => {
-      const actualRaw = targeting[c.targetKey];
-      // Robust array conversion
-      const actualValues = Array.isArray(actualRaw) 
-        ? actualRaw.map(v => String(v).toLowerCase().trim())
-        : [String(actualRaw || '').toLowerCase().trim()];
-        
-      const inputValues = c.value.split(',').map(v => v.trim().toLowerCase());
-      
-      switch(c.operator) {
-        case 'equals': 
-          // Checks if ANY input value is present in actual values
-          return inputValues.some(iv => actualValues.includes(iv));
-          
-        case 'not_equals': 
-          // Checks if ALL input values are ABSENT from actual values
-          return inputValues.every(iv => !actualValues.includes(iv));
-          
-        case 'contains': 
-          // Checks if ANY input is a substring of ANY actual value
-          return inputValues.some(iv => actualValues.some(av => av.indexOf(iv) > -1));
-          
-        case 'not_contains': 
-          // Checks if ALL inputs are NOT substrings of ANY actual value
-          return inputValues.every(iv => actualValues.every(av => av.indexOf(iv) === -1));
-          
-        default: return false;
-      }
-    });
-
-    // Logical OR / AND Logic
-    const match = rule.lOp === 'AND' ? results.every(r => r) : results.some(r => r);
+  try {
+    const rules = ${configJson.replace(/\n/g, '\n    ')};
+    const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
     
-    if (match) {
-        injectStyle(rule.sel, rule.act);
-        
-        if (rule.js) {
-            const run = () => safeRunJs(rule.js, targeting, rule.sel);
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', run);
-            } else {
-                run();
+    if (targeting) {
+      const inject = (sel, action) => {
+         const s = document.createElement("style");
+         const disp = action === "show" ? "block" : "none";
+         const vis = action === "show" ? "visible" : "hidden";
+         s.innerHTML = sel + " { display: " + disp + " !important; visibility: " + vis + " !important; }";
+         document.head.appendChild(s);
+      };
+      
+      const runJs = (code, ctx, sel) => {
+         try { new Function("ctx", "selector", code)(ctx, sel); } 
+         catch(err) { console.warn("AdEx JS Error:", err); }
+      };
+
+      rules.forEach(rule => {
+         // 1. Check Global Ads Enabled requirement
+         if (rule.rae && targeting.ads_enabled !== true) return;
+
+         // 2. Evaluate all conditions
+         const results = rule.conds.map(cond => {
+            const pageValRaw = targeting[cond.targetKey];
+            
+            // Normalize page values to array of lowercased strings
+            const pageVals = Array.isArray(pageValRaw) 
+              ? pageValRaw.map(v => String(v).toLowerCase().trim()) 
+              : [String(pageValRaw || "").toLowerCase().trim()];
+            
+            // Normalize rule values
+            const ruleVals = cond.value.split(",").map(v => v.trim().toLowerCase());
+
+            switch (cond.operator) {
+              case "equals": 
+                // True if ANY rule val matches ANY page val
+                return ruleVals.some(rv => pageVals.includes(rv));
+              case "not_equals": 
+                // True if ALL rule vals are NOT in page vals
+                return ruleVals.every(rv => !pageVals.includes(rv));
+              case "contains": 
+                return ruleVals.some(rv => pageVals.some(pv => pv.indexOf(rv) > -1));
+              case "not_contains": 
+                return ruleVals.every(rv => pageVals.every(pv => pv.indexOf(rv) === -1));
+              default: return false;
             }
-        }
+         });
+
+         // 3. Apply Logical Operator (AND vs OR)
+         const isMatch = rule.lOp === "OR" 
+            ? results.some(r => r) 
+            : results.every(r => r);
+
+         // 4. Execute Action
+         if (isMatch) {
+            inject(rule.sel, rule.act);
+            if (rule.js) {
+               const exec = () => runJs(rule.js, targeting, rule.sel);
+               if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", exec);
+               else exec();
+            }
+         }
+      });
     }
-  });
+  } catch (err) {
+    console.error("AdExclusion Engine Error:", err);
+  }
 })();`;
 
   const copyToClipboard = (text: string) => {

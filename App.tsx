@@ -61,16 +61,80 @@ const App = () => {
 
     const configJson = JSON.stringify(config);
 
-    // FIX: Refactored logic to use cleaner variable names and .includes() for better reliability
-    // 'rules' = e
-    // 'targeting' = t
-    // 'injectStyle' = n
-    // 'safeRunJs' = s
-    // Rule Loop:
-    // 'rule' = r
-    // 'conditionResults' = res
-    // 'finalMatch' = m
-    return `!function(){try{const e=${configJson},t=page_meta?.third_party_apps?.ntAds?.targeting;if(t){const n=(e,t)=>{const n=document.createElement("style"),r="show"===t?"block":"none",a="show"===t?"visible":"hidden";n.innerHTML=e+" { display: "+r+" !important; visibility: "+a+" !important; }",document.head.appendChild(n)},s=(e,n,r)=>{try{new Function("ctx","selector",e)(n,r)}catch(e){console.warn("AdEx JS:",e)}};e.forEach((e=>{if((!e.rae||!0===t.ads_enabled)){const r=e.conds.map((e=>{const n=t[e.targetKey],r=Array.isArray(n)?n.map((e=>String(e).toLowerCase().trim())):[String(n||"").toLowerCase().trim()],a=e.value.split(",").map((e=>e.trim().toLowerCase()));switch(e.operator){case"equals":return a.some((e=>r.includes(e)));case"not_equals":return a.every((e=>!r.includes(e)));case"contains":return a.some((e=>r.some((n=>n.indexOf(e)>-1))));case"not_contains":return a.every((e=>r.every((n=>-1===n.indexOf(e)))));default:return!1}})),m="AND"===e.lOp?r.every((e=>e)):r.some((e=>e));if(m){n(e.sel,e.act);if(e.js){const i=()=>s(e.js,t,e.sel);"loading"!==document.readyState?i():document.addEventListener("DOMContentLoaded",i)}}}}))}}catch(e){console.error("AdExclusion:",e)}}();`;
+    // CRITICAL UPDATE: 
+    // Uses clear variable names (rules, targeting, cond) to prevent shadowing bugs.
+    // Explicitly handles Logical OR vs AND in a clean scope.
+    return `!function(){
+      try {
+        const rules = ${configJson};
+        const targeting = page_meta?.third_party_apps?.ntAds?.targeting;
+        
+        if (targeting) {
+          const inject = (sel, action) => {
+             const s = document.createElement("style");
+             const disp = action === "show" ? "block" : "none";
+             const vis = action === "show" ? "visible" : "hidden";
+             s.innerHTML = sel + " { display: " + disp + " !important; visibility: " + vis + " !important; }";
+             document.head.appendChild(s);
+          };
+          
+          const runJs = (code, ctx, sel) => {
+             try { new Function("ctx", "selector", code)(ctx, sel); } 
+             catch(err) { console.warn("AdEx JS Error:", err); }
+          };
+
+          rules.forEach(rule => {
+             // 1. Check Global Ads Enabled requirement
+             if (rule.rae && targeting.ads_enabled !== true) return;
+
+             // 2. Evaluate all conditions
+             const results = rule.conds.map(cond => {
+                const pageValRaw = targeting[cond.targetKey];
+                
+                // Normalize page values to array of lowercased strings
+                const pageVals = Array.isArray(pageValRaw) 
+                  ? pageValRaw.map(v => String(v).toLowerCase().trim()) 
+                  : [String(pageValRaw || "").toLowerCase().trim()];
+                
+                // Normalize rule values
+                const ruleVals = cond.value.split(",").map(v => v.trim().toLowerCase());
+
+                switch (cond.operator) {
+                  case "equals": 
+                    // True if ANY rule val matches ANY page val
+                    return ruleVals.some(rv => pageVals.includes(rv));
+                  case "not_equals": 
+                    // True if ALL rule vals are NOT in page vals
+                    return ruleVals.every(rv => !pageVals.includes(rv));
+                  case "contains": 
+                    return ruleVals.some(rv => pageVals.some(pv => pv.indexOf(rv) > -1));
+                  case "not_contains": 
+                    return ruleVals.every(rv => pageVals.every(pv => pv.indexOf(rv) === -1));
+                  default: return false;
+                }
+             });
+
+             // 3. Apply Logical Operator (AND vs OR)
+             // Debug: console.log(rule.name, rule.lOp, results);
+             const isMatch = rule.lOp === "OR" 
+                ? results.some(r => r) 
+                : results.every(r => r);
+
+             // 4. Execute Action
+             if (isMatch) {
+                inject(rule.sel, rule.act);
+                if (rule.js) {
+                   const exec = () => runJs(rule.js, targeting, rule.sel);
+                   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", exec);
+                   else exec();
+                }
+             }
+          });
+        }
+      } catch (err) {
+        console.error("AdExclusion Engine Error:", err);
+      }
+    }();`
   };
 
   const publish = async () => {
@@ -223,9 +287,16 @@ const App = () => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.5.0 STABLE</div>
-            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d.</p>
+            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d. • AdOps & Engineering</p>
           </div>
           <div className="flex gap-10">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Edge Cluster</span>
+              <span className="text-[11px] font-bold text-emerald-600 uppercase flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> 
+                Live & Healthy
+              </span>
+            </div>
             <div className="flex flex-col items-end">
               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Auth Scope</span>
               <span className="text-[11px] font-bold text-slate-600 uppercase">Cloudflare KV Session</span>
