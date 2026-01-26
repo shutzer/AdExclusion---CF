@@ -223,16 +223,9 @@ const App = () => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.5.0 STABLE</div>
-            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d. • AdOps & Engineering</p>
+            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d.</p>
           </div>
           <div className="flex gap-10">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Edge Cluster</span>
-              <span className="text-[11px] font-bold text-emerald-600 uppercase flex items-center gap-1.5">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> 
-                Live & Healthy
-              </span>
-            </div>
             <div className="flex flex-col items-end">
               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Auth Scope</span>
               <span className="text-[11px] font-bold text-slate-600 uppercase">Cloudflare KV Session</span>
