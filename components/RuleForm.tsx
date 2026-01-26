@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Operator, BlacklistRule, TargetingKey, ActionType, Condition, LogicalOperator } from '../types';
 import { TARGETING_KEYS, OPERATORS } from '../constants';
+import { CodeEditor } from './CodeEditor.tsx';
 
 interface RuleFormProps {
   onSubmit: (rule: Omit<BlacklistRule, 'id' | 'createdAt' | 'isActive'>) => void;
@@ -16,7 +18,9 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   );
   const [selector, setSelector] = useState(initialData?.targetElementSelector || '');
   const [action, setAction] = useState<ActionType>(initialData?.action || 'hide');
+  const [customJs, setCustomJs] = useState(initialData?.customJs || '');
   const [respectAdsEnabled, setRespectAdsEnabled] = useState(initialData?.respectAdsEnabled ?? true);
+  const [showAdvanced, setShowAdvanced] = useState(!!initialData?.customJs);
 
   const addCondition = () => {
     setConditions([...conditions, { targetKey: 'section', operator: Operator.EQUALS, value: '', caseSensitive: false }]);
@@ -46,6 +50,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       logicalOperator,
       targetElementSelector: selector,
       action,
+      customJs,
       respectAdsEnabled
     });
   };
@@ -59,14 +64,6 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
             <span className="w-1.5 h-6 bg-indigo-600 rounded-full shadow-[0_0_8px_rgba(79,70,229,0.3)]"></span>
             {initialData?.id ? 'Konfiguracija Pravila' : 'Novo Izuzeće'}
           </h2>
-          <div className="flex items-center gap-2 mt-2 md:mt-1">
-             <span className="px-2 py-0.5 bg-slate-100 text-[9px] font-black uppercase text-slate-500 rounded tracking-widest border border-slate-200">
-                Context: page_meta.ntAds
-             </span>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-          <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Active Targeting Scope</span>
         </div>
       </div>
 
@@ -211,6 +208,30 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
             placeholder="npr. .bg-branding-main ili #ad-banner"
             className="w-full h-14 md:h-12 bg-slate-50 border border-slate-200 px-4 rounded-xl text-sm font-bold font-mono outline-none shadow-inner focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all"
           />
+        </div>
+
+        {/* Advanced: JS Injection Toggle & Editor */}
+        <div className="pt-2">
+           <button 
+             type="button"
+             onClick={() => setShowAdvanced(!showAdvanced)}
+             className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-indigo-600 transition-colors tracking-widest"
+           >
+              <span className={`transition-transform duration-200 ${showAdvanced ? 'rotate-90' : ''}`}>▶</span>
+              Napredno: Custom JavaScript Injection
+           </button>
+           
+           {showAdvanced && (
+             <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
+                <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 shadow-inner">
+                   <CodeEditor 
+                     value={customJs}
+                     onChange={setCustomJs}
+                     placeholder="// Unesite JS kod koji će se izvršiti ako su uvjeti zadovoljeni.&#10;// Primjer: console.log('Targeting matched!', ctx.site);"
+                   />
+                </div>
+             </div>
+           )}
         </div>
         
         <div className="flex flex-col md:flex-row gap-4 pt-4">

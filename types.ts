@@ -1,3 +1,4 @@
+
 export enum Operator {
   EQUALS = 'equals',
   NOT_EQUALS = 'not_equals',
@@ -47,6 +48,7 @@ export interface BlacklistRule {
   logicalOperator: LogicalOperator;
   targetElementSelector: string;
   action: ActionType;
+  customJs?: string; // New field for JS Injection
   isActive: boolean;
   respectAdsEnabled: boolean;
   createdAt: number;

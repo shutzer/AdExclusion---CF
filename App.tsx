@@ -55,14 +55,16 @@ const App = () => {
       sel: r.targetElementSelector,
       act: r.action || 'hide',
       rae: !!r.respectAdsEnabled,
-      active: r.isActive
+      active: r.isActive,
+      js: r.customJs ? r.customJs : undefined // Minify: only include if exists
     })).filter(r => r.active);
 
     const configJson = JSON.stringify(config);
 
     // Minified Production Script
     // Removes newlines, spaces, comments and shortens variable names for bandwidth optimization.
-    return `!function(){try{const e=${configJson},t=page_meta?.third_party_apps?.ntAds?.targeting;if(t){const n=(e,t)=>{const n=document.createElement("style"),r="show"===t?"block":"none",a="show"===t?"visible":"hidden";n.innerHTML=e+" { display: "+r+" !important; visibility: "+a+" !important; }",document.head.appendChild(n)};e.forEach((e=>{if((!e.rae||!0===t.ads_enabled)){const r=e.conds.map((e=>{const n=t[e.targetKey],r=Array.isArray(n)?n.map((e=>String(e).toLowerCase().trim())):[String(n||"").toLowerCase().trim()],a=e.value.split(",").map((e=>e.trim().toLowerCase()));switch(e.operator){case"equals":return a.some((e=>r.some((n=>n===e))));case"not_equals":return a.every((e=>r.every((n=>n!==e))));case"contains":return a.some((e=>r.some((n=>-1!==n.indexOf(e)))));case"not_contains":return a.every((e=>r.every((n=>-1===n.indexOf(e)))));default:return!1}})),a="AND"===e.lOp?r.every((e=>e)):r.some((e=>e));a&&n(e.sel,e.act)}}))}}catch(e){console.error("AdExclusion:",e)}}();`;
+    // Added 'safeRunJs' function to execute custom JS within a try-catch block using new Function for scope isolation.
+    return `!function(){try{const e=${configJson},t=page_meta?.third_party_apps?.ntAds?.targeting;if(t){const n=(e,t)=>{const n=document.createElement("style"),r="show"===t?"block":"none",a="show"===t?"visible":"hidden";n.innerHTML=e+" { display: "+r+" !important; visibility: "+a+" !important; }",document.head.appendChild(n)},s=(e,n,r)=>{try{new Function("ctx","selector",e)(n,r)}catch(e){console.warn("AdEx JS:",e)}};e.forEach((e=>{if((!e.rae||!0===t.ads_enabled)){const r=e.conds.map((e=>{const n=t[e.targetKey],r=Array.isArray(n)?n.map((e=>String(e).toLowerCase().trim())):[String(n||"").toLowerCase().trim()],a=e.value.split(",").map((e=>e.trim().toLowerCase()));switch(e.operator){case"equals":return a.some((e=>r.some((n=>n===e))));case"not_equals":return a.every((e=>r.every((n=>n!==e))));case"contains":return a.some((e=>r.some((n=>-1!==n.indexOf(e)))));case"not_contains":return a.every((e=>r.every((n=>-1===n.indexOf(e)))));default:return!1}})),a="AND"===e.lOp?r.every((e=>e)):r.some((e=>e));if(a){n(e.sel,e.act);if(e.js)s(e.js,t,e.sel)}}}}))}}catch(e){console.error("AdExclusion:",e)}}();`;
   };
 
   const publish = async () => {
@@ -215,19 +217,10 @@ const App = () => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-slate-900 text-white p-1.5 px-3 font-black text-[10px] rounded uppercase select-none">v2.5.0 STABLE</div>
-            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d. • AdOps & Engineering</p>
           </div>
           <div className="flex gap-10">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Edge Cluster</span>
-              <span className="text-[11px] font-bold text-emerald-600 uppercase flex items-center gap-1.5">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span> 
-                Live & Healthy
-              </span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Auth Scope</span>
-              <span className="text-[11px] font-bold text-slate-600 uppercase">Cloudflare KV Session</span>
+            <div className="flex items-end">
+              <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wide">© {new Date().getFullYear()} NOVA TV d.d.</p>
             </div>
           </div>
         </div>

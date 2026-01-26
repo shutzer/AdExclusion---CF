@@ -250,6 +250,24 @@ export const Sandbox: React.FC<SandboxProps> = ({ rules }) => {
                         {m.targetElementSelector}
                       </code>
                     </div>
+
+                    {/* Simulation Log for Custom JS */}
+                    {m.customJs && (
+                       <div className="mt-4 border-t border-white/10 pt-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Simulation Log: Custom JS</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                          </div>
+                          <div className="bg-black/40 rounded-xl p-3 border border-amber-500/20">
+                             <div className="text-[10px] text-amber-200 font-mono mb-2">
+                                ✅ Script Triggered
+                             </div>
+                             <code className="text-[9px] font-mono text-slate-400 block break-words whitespace-pre-wrap">
+                                {m.customJs}
+                             </code>
+                          </div>
+                       </div>
+                    )}
                   </div>
                 </div>
               ))}

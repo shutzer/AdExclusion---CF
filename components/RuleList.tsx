@@ -55,7 +55,12 @@ export const RuleList: React.FC<RuleListProps> = ({ rules, onDelete, onToggle, o
               </td>
               <td className="px-6 py-3">
                 <div className="flex flex-col">
-                  <span className="text-[13px] font-black text-slate-800 tracking-tight truncate max-w-[220px]">{rule.name}</span>
+                  <div className="flex items-center gap-2">
+                     <span className="text-[13px] font-black text-slate-800 tracking-tight truncate max-w-[220px]">{rule.name}</span>
+                     {rule.customJs && (
+                       <span className="px-1 py-0.5 bg-amber-100 text-amber-600 border border-amber-200 text-[8px] font-black rounded uppercase tracking-tighter" title="Sadrži Custom JS">JS</span>
+                     )}
+                  </div>
                   <div className="mt-1 flex items-center gap-2">
                     <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${rule.action === 'hide' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
                       {rule.action === 'hide' ? '🚫 SAKRIJ' : '✅ PRIKAŽI'}

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { BlacklistRule } from '../types';
 
@@ -14,7 +15,8 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
     lOp: r.logicalOperator,
     sel: r.targetElementSelector,
     act: r.action || 'hide',
-    rae: !!r.respectAdsEnabled
+    rae: !!r.respectAdsEnabled,
+    js: r.customJs ? r.customJs : undefined
   })), null, 2);
 
   const scriptCode = `(function() {
@@ -28,6 +30,16 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
     const visibilityVal = action === 'show' ? 'visible' : 'hidden';
     s.innerHTML = sel + ' { display: ' + displayVal + ' !important; visibility: ' + visibilityVal + ' !important; }';
     document.head.appendChild(s);
+  };
+  
+  const safeRunJs = (code, ctx, selector) => {
+    if(!code) return;
+    try {
+      // Izolirano izvršavanje s prosljeđenim kontekstom
+      new Function('ctx', 'selector', code)(ctx, selector);
+    } catch(e) {
+      console.warn('AdExclusion JS Error:', e);
+    }
   };
 
   rules.forEach(rule => {
@@ -55,7 +67,10 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
     });
 
     const match = rule.lOp === 'AND' ? results.every(r => r) : results.some(r => r);
-    if (match) injectStyle(rule.sel, rule.act);
+    if (match) {
+        injectStyle(rule.sel, rule.act);
+        if (rule.js) safeRunJs(rule.js, targeting, rule.sel);
+    }
   });
 })();`;
 
@@ -73,7 +88,7 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
             activeTab === 'json' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
           }`}
         >
-          JSON
+          JSON Payload
         </button>
         <button
           onClick={() => setActiveTab('script')}
@@ -81,12 +96,11 @@ export const IntegrationPreview: React.FC<IntegrationPreviewProps> = ({ rules })
             activeTab === 'script' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
           }`}
         >
-          JS Kod
+          Logic Preview
         </button>
       </div>
 
       <div className="relative group w-full">
-        {/* Visina povećana s h-48 na h-[500px] (~3x više) */}
         <pre className="bg-slate-900 text-indigo-300 p-6 rounded-2xl text-[10px] font-mono h-[550px] overflow-y-auto custom-scrollbar border border-slate-800 w-full">
           <code>{activeTab === 'json' ? configJson : scriptCode}</code>
         </pre>

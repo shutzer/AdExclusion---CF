@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AdExclusion Enterprise</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%23b71918' d='M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z'/%3E%3Cpath fill='none' stroke='white' stroke-width='8' d='M35 35 L65 65 M65 35 L35 65' stroke-linecap='round'/%3E%3C/svg%3E" type="image/svg+xml">
+    <!-- PrismJS Theme for Code Editor -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -25,6 +27,9 @@
           .replace(/import\s+React\s+from\s+['"]react['"];?/g, '')
           .replace(/import\s+{([^}]*)}\s+from\s+['"]react['"];?/g, 'const {$1} = window.React;')
           .replace(/import\s+{([^}]*)}\s+from\s+['"]@google\/genai['"];?/g, 'const {$1} = window.genAI;')
+          // External Libraries (Prism & Editor)
+          .replace(/import\s+Prism\s+from\s+['"]prismjs['"];?/g, 'const { default: Prism } = window.PrismModule;')
+          .replace(/import\s+Editor\s+from\s+['"]react-simple-code-editor['"];?/g, 'const { default: Editor } = window.SimpleCodeEditor;')
           // Services - Updated regex to support both ./ and ../
           .replace(/import\s+{[^}]*authService[^}]*}\s+from\s+['"]\.\.?\/.*authService\.ts['"];?/g, 'const { authService } = window.AuthModule;')
           .replace(/import\s+{[^}]*dataService[^}]*}\s+from\s+['"]\.\.?\/.*dataService\.ts['"];?/g, 'const { dataService } = window.DataModule;')
@@ -37,6 +42,7 @@
           .replace(/import\s+{[^}]*RuleList[^}]*}\s+from\s+['"]\.\.?\/.*RuleList\.tsx['"];?/g, 'const { RuleList } = window.RuleListModule;')
           .replace(/import\s+{[^}]*IntegrationPreview[^}]*}\s+from\s+['"]\.\.?\/.*IntegrationPreview\.tsx['"];?/g, 'const { IntegrationPreview } = window.IntegrationModule;')
           .replace(/import\s+{[^}]*Sandbox[^}]*}\s+from\s+['"]\.\.?\/.*Sandbox\.tsx['"];?/g, 'const { Sandbox } = window.SandboxModule;')
+          .replace(/import\s+{[^}]*CodeEditor[^}]*}\s+from\s+['"]\.\.?\/.*CodeEditor\.tsx['"];?/g, 'const { CodeEditor } = window.CodeEditorModule;')
           // Remove remaining local imports
           .replace(/import\s+.*\s+from\s+['"]\.\.?\/[^'"]*['"];?/g, '');
 
@@ -52,15 +58,19 @@
       async function bootstrap() {
         const root = document.getElementById('root');
         try {
-          const [React, ReactDOM, genAI] = await Promise.all([
+          const [React, ReactDOM, genAI, PrismModule, SimpleCodeEditor] = await Promise.all([
             import('https://esm.sh/react@18.3.1'),
             import('https://esm.sh/react-dom@18.3.1/client'),
-            import('https://esm.sh/@google/genai@1.38.0')
+            import('https://esm.sh/@google/genai@1.38.0'),
+            import('https://esm.sh/prismjs@1.29.0'),
+            import('https://esm.sh/react-simple-code-editor@0.13.1?deps=react@18.3.1')
           ]);
           
           window.React = React.default || React;
           window.ReactDOM = ReactDOM.default || ReactDOM;
           window.genAI = genAI;
+          window.PrismModule = PrismModule;
+          window.SimpleCodeEditor = SimpleCodeEditor;
 
           // Sequential load to satisfy dependencies
           const loadModule = async (name, path) => {
@@ -77,6 +87,7 @@
           await loadModule('DataModule', './services/dataService.ts');
           
           // Load components
+          await loadModule('CodeEditorModule', './components/CodeEditor.tsx'); // Load early as it's a leaf component
           await loadModule('RuleFormModule', './components/RuleForm.tsx');
           await loadModule('RuleListModule', './components/RuleList.tsx');
           await loadModule('IntegrationModule', './components/IntegrationPreview.tsx');
@@ -108,7 +119,9 @@
     "react": "https://esm.sh/react@18.3.1",
     "react-dom/": "https://esm.sh/react-dom@18.3.1/",
     "react/": "https://esm.sh/react@18.3.1/",
-    "@google/genai": "https://esm.sh/@google/genai@1.38.0"
+    "@google/genai": "https://esm.sh/@google/genai@1.38.0",
+    "prismjs": "https://esm.sh/prismjs@^1.30.0",
+    "react-simple-code-editor": "https://esm.sh/react-simple-code-editor@^0.14.1"
   }
 }
 </script>
