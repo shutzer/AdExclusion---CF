@@ -19,25 +19,27 @@ interface Env {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { target } = await context.request.json();
-  
-  const token = context.env.CF_API_TOKEN;
-  const zoneId = context.env.CF_ZONE_ID;
-  
-  // Choose URL based on target environment
-  const targetUrl = target === 'dev' 
-    ? context.env.CF_PURGE_URL_DEV 
-    : context.env.CF_PURGE_URL;
-
-  if (!token || !zoneId || !targetUrl) {
-    const errorMsg = `Purge skipped: Missing configuration for ${target || 'prod'} environment.`;
-    return new Response(JSON.stringify({ success: false, message: errorMsg }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-
   try {
+    const { target } = await context.request.json();
+    
+    const token = context.env.CF_API_TOKEN;
+    const zoneId = context.env.CF_ZONE_ID;
+    
+    // Dohvaćamo URL i čistimo ga od mogućih razmaka
+    let targetUrl = target === 'dev' 
+      ? context.env.CF_PURGE_URL_DEV 
+      : context.env.CF_PURGE_URL;
+
+    targetUrl = targetUrl?.trim();
+
+    if (!token || !zoneId || !targetUrl) {
+      const errorMsg = `Konfiguracijska greška: Nedostaje CF_API_TOKEN, CF_ZONE_ID ili URL za ${target || 'prod'} okruženje.`;
+      return new Response(JSON.stringify({ success: false, message: errorMsg }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
     const cfResponse = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/purge_cache`, {
       method: 'POST',
       headers: {
@@ -49,18 +51,20 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       })
     });
 
-    if (!cfResponse.ok) {
+    const result = await cfResponse.json();
+
+    if (!cfResponse.ok || !result.success) {
         return new Response(JSON.stringify({ 
             success: false, 
-            message: `Cloudflare API error: ${cfResponse.status}`
+            message: `Cloudflare API Error: ${result.errors?.[0]?.message || 'Nepoznata greška'}`,
+            details: result
         }), {
             status: cfResponse.status,
             headers: { "Content-Type": "application/json" }
         });
     }
 
-    const result = await cfResponse.json();
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({ success: true, target, url: targetUrl }), {
       headers: { "Content-Type": "application/json" }
     });
   } catch (err) {

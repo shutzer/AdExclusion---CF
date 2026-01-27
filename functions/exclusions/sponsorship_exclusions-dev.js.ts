@@ -16,29 +16,38 @@ interface Env {
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const dataRaw = context.env.AD_EXCLUSION_KV;
-  // READ FROM DEV KEY
   const data = await dataRaw.get("rules_data_dev");
   const fallback = "/* AdExclusion (DEV): No rules found */";
   
+  const headers = {
+    "Content-Type": "application/javascript; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "CDN-Cache-Control": "no-store", // Cloudflare Edge bypass
+    "Cloudflare-CDN-Cache-Control": "no-store", // Explicit CF bypass
+    "X-AdEx-Env": "development",
+    "X-Content-Type-Options": "nosniff"
+  };
+
   if (!data) {
-    return new Response(fallback, {
-      headers: { 
-        "Content-Type": "application/javascript; charset=utf-8",
-        "Access-Control-Allow-Origin": "*"
-      }
-    });
+    return new Response(fallback, { headers });
   }
 
-  const parsed = JSON.parse(data);
-  const hasActiveRules = parsed.rules && parsed.rules.some((r: any) => !!r.isActive);
-  let output = hasActiveRules ? (parsed.script || fallback) : fallback;
+  try {
+    const parsed = JSON.parse(data);
+    
+    let output = (parsed.script && typeof parsed.script === 'string' && parsed.script.trim().length > 0) 
+      ? parsed.script 
+      : fallback;
 
-  return new Response(output, {
-    headers: {
-      "Content-Type": "application/javascript; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-cache", // No cache for dev environment
-      "X-AdEx-Env": "development"
-    },
-  });
+    if (output !== fallback && output.includes("const rules = [];")) {
+      output = fallback;
+    }
+
+    return new Response(output, { headers });
+  } catch (err) {
+    return new Response(`/* AdExclusion (DEV) Error: ${err.message} */`, {
+      headers: { ...headers, "Content-Type": "application/javascript" }
+    });
+  }
 };

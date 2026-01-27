@@ -42,7 +42,6 @@ const App = () => {
 
   const saveRulesToWorkspace = async (newRules: BlacklistRule[]) => {
     setRules(newRules);
-    // Silent background save to keep workspace updated
     try { await dataService.saveRules(newRules, undefined, 'prod'); } catch (e) { console.error(e); }
   };
 
@@ -128,10 +127,15 @@ const App = () => {
     
     try {
       await dataService.saveRules(rules, script, env);
-      await dataService.purgeCache(env);
-      alert(`🚀 USPJEH! Pravila su objavljena na ${env.toUpperCase()} Edge.`);
+      const purgeResult = await dataService.purgeCache(env);
+      
+      if (purgeResult.success) {
+        alert(`🚀 USPJEH! Pravila su objavljena na ${env.toUpperCase()} Edge i cache je očišćen.`);
+      } else {
+        alert(`⚠️ Pravila spremljena, ali PURGE nije uspio: ${purgeResult.message || 'Provjerite CF postavke.'}`);
+      }
     } catch (e) { 
-      alert('Greška pri objavljivanju.'); 
+      alert('Kritična greška pri objavljivanju.'); 
     } 
     finally { setIsPublishing(null); }
   };
