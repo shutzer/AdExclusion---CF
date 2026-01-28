@@ -1,44 +1,47 @@
 
 # AdExclusion Enterprise 🚀
 
-**AdExclusion Enterprise** je optimiziran za Cloudflare Pages Git-integritaciju.
+**AdExclusion Enterprise** je optimiziran za Cloudflare Pages.
 
-## ✅ Cloudflare Dashboard Konfiguracija
+## ⚠️ KRITIČNO: Setup Okruženja
 
-Budući da koristimo isti kod za različita okruženja, **KV bindinge je potrebno ručno postaviti** u Cloudflare Dashboardu.
+Kako bi imali potpunu kontrolu nad PROD i DEV okruženjima, **ne koristimo `wrangler.toml`** u repozitoriju.
 
-### 1. Bindings (Settings > Functions)
+1. **Obrišite `wrangler.toml`** ako postoji.
+2. Za lokalni razvoj koristimo **`wrangler.local.toml`**.
+3. Bindinge postavljamo **ručno** u Cloudflare Dashboardu.
 
-**ZA PRODUKCIJSKI PROJEKT (PROD):**
-1. Otiđite na **Settings** > **Functions**.
-2. Pod **KV Namespace Bindings** dodajte:
-   - **Variable name:** `AD_EXCLUSION_KV`
-   - **KV namespace:** Odaberite svoj *glavni produkcijski KV*.
+### Lokalni Razvoj
+Pokrenite aplikaciju koristeći novu lokalnu konfiguraciju:
+```bash
+npm run dev
+```
 
-**ZA STAGING / DEV PROJEKT:**
-1. Otiđite na **Settings** > **Functions**.
-2. Pod **KV Namespace Bindings** dodajte:
-   - **Variable name:** `AD_EXCLUSION_KV_DEV`
-   - **KV namespace:** Odaberite `AD_EXCLUSION_KV_DEV` (ili onaj koji završava na `...c1207`).
+### Cloudflare Dashboard Konfiguracija (Manualna)
 
-*Objašnjenje: Kod automatski traži `AD_EXCLUSION_KV`. Ako ga ne nađe (jer smo na Stageu), traži `AD_EXCLUSION_KV_DEV`. Ovime osiguravamo da Stage nikada ne može pisati po Produkciji.*
+Budući da smo maknuli `wrangler.toml`, Dashboard će se otključati. Postavite bindinge ovako:
 
-### 2. Variables and Secrets (Settings > Environment variables)
-Dodajte ove varijable pod **Secrets** (encrypted) za oba okruženja:
+**1. ZA PRODUKCIJSKI PROJEKT (PROD):**
+*   Settings > Functions > KV Namespace Bindings
+*   Variable name: **`AD_EXCLUSION_KV`**
+*   Value: *Vaš PROD KV namespace*
 
-| Variable Name | Description | Mandatory |
-| :--- | :--- | :--- |
-| `ADMIN_PASS` | Lozinka za pristup admin sučelju (SuperAdmin, username: `admin`) | **DA** |
-| `USER_PASS` | Lozinka za pristup standardnog korisnika (username: `user`) | **NE** |
-| `CF_API_TOKEN` | API Token sa dozvolom `Zone.Cache Purge` | DA |
-| `CF_ZONE_ID` | ID Zone vaše domene | DA |
-| `CF_PURGE_URL` | URL Produkcijske skripte (npr. `.../exclusions/sponsorship_exclusions.js`) | DA |
-| `CF_PURGE_URL_DEV` | URL Development skripte (npr. `.../exclusions/sponsorship_exclusions-dev.js`) | DA |
+**2. ZA STAGING / DEV PROJEKT:**
+*   Settings > Functions > KV Namespace Bindings
+*   Variable name: **`AD_EXCLUSION_KV_DEV`**
+*   Value: *Vaš DEV KV namespace*
 
-### Workflow Okruženja
-1. **DRAFT**: Sva pravila se automatski spremaju u radni prostor prilikom uređivanja.
-2. **OBJAVI NA DEV**: Šalje trenutna pravila na `/exclusions/sponsorship_exclusions-dev.js`.
-3. **OBJAVI NA PROD**: Šalje pravila na `/exclusions/sponsorship_exclusions.js`.
+### Variables and Secrets
+Dodajte ove varijable pod **Settings > Environment variables** za oba okruženja:
+
+| Variable Name | Description |
+| :--- | :--- |
+| `ADMIN_PASS` | Lozinka za pristup admin sučelju |
+| `USER_PASS` | Lozinka za pristup standardnog korisnika |
+| `CF_API_TOKEN` | API Token (Zone.Cache Purge) |
+| `CF_ZONE_ID` | ID Zone |
+| `CF_PURGE_URL` | URL Produkcijske skripte |
+| `CF_PURGE_URL_DEV` | URL Development skripte |
 
 ---
 *Senior Systems Architect*

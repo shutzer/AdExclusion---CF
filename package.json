@@ -5,6 +5,7 @@
   "description": "Edge-native Ad Exclusion Engine for High-Traffic Portals",
   "private": true,
   "scripts": {
+    "dev": "wrangler pages dev . --config wrangler.local.toml --port 8788",
     "build": "echo 'Build assets prepared'",
     "deploy": "echo 'Deployment triggered by Pages CI/CD'"
   },
