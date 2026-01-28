@@ -11,22 +11,14 @@ type PagesFunction<Env = any> = (context: {
 }) => Response | Promise<Response>;
 
 interface Env {
-  AD_EXCLUSION_KV: KVNamespace;
+  AD_EXCLUSION_KV?: KVNamespace;
+  AD_EXCLUSION_KV_DEV?: KVNamespace;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const dataRaw = context.env.AD_EXCLUSION_KV;
-  const data = await dataRaw.get("rules_data_dev");
+  const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_DEV;
+
   const fallback = "/* AdExclusion (DEV): No active rules found at this time */";
-  const now = Date.now();
-  
-  const croFormatter = new Intl.DateTimeFormat('hr-HR', {
-    timeZone: 'Europe/Zagreb',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false
-  });
-  const croTime = croFormatter.format(new Date(now));
   
   const headers = {
     "Content-Type": "application/javascript; charset=utf-8",
@@ -38,6 +30,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     "X-Content-Type-Options": "nosniff"
   };
 
+  if (!db) return new Response(fallback, { headers });
+
+  const data = await db.get("rules_data_dev");
+  const now = Date.now();
+  
+  const croFormatter = new Intl.DateTimeFormat('hr-HR', {
+    timeZone: 'Europe/Zagreb',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false
+  });
+  const croTime = croFormatter.format(new Date(now));
+  
   if (!data) return new Response(fallback, { headers });
 
   const parsed = JSON.parse(data);

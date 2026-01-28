@@ -55,3 +55,14 @@ export interface BlacklistRule {
   endDate?: number;   // Unix timestamp ms
   createdAt: number;
 }
+
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'PUBLISH_PROD' | 'PUBLISH_DEV' | 'ROLLBACK' | 'TOGGLE';
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: number;
+  user: string;
+  action: AuditAction;
+  details: string;
+  snapshotId: string;
+}

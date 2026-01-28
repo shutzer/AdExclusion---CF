@@ -1,9 +1,12 @@
 
-export const MOCK_RULES = [
+import { BlacklistRule, AuditLogEntry, Operator } from '../types.ts';
+
+export const MOCK_RULES: BlacklistRule[] = [
   {
     id: 'mock-1',
     name: 'Heineken: Euro 2026 Sponsorship',
-    conditions: [{ targetKey: 'section', operator: 'equals', value: 'sport', caseSensitive: false }],
+    // Fix: Using Operator.EQUALS enum member instead of string literal 'equals'
+    conditions: [{ targetKey: 'section', operator: Operator.EQUALS, value: 'sport', caseSensitive: false }],
     logicalOperator: 'AND',
     targetElementSelector: '.bg-branding-main',
     action: 'hide',
@@ -14,7 +17,8 @@ export const MOCK_RULES = [
   {
     id: 'mock-2',
     name: 'Mastercard: News Exclusive',
-    conditions: [{ targetKey: 'top_section', operator: 'equals', value: 'vijesti', caseSensitive: false }],
+    // Fix: Using Operator.EQUALS enum member instead of string literal 'equals'
+    conditions: [{ targetKey: 'top_section', operator: Operator.EQUALS, value: 'vijesti', caseSensitive: false }],
     logicalOperator: 'AND',
     targetElementSelector: '#top-banner-wrap',
     action: 'hide',
@@ -26,8 +30,10 @@ export const MOCK_RULES = [
     id: 'mock-3',
     name: 'PlayStation 6: Tech Launch',
     conditions: [
-      { targetKey: 'section', operator: 'equals', value: 'tehnologija', caseSensitive: false },
-      { targetKey: 'keywords', operator: 'contains', value: 'gaming, konzole', caseSensitive: false }
+      // Fix: Using Operator.EQUALS enum member instead of string literal 'equals'
+      { targetKey: 'section', operator: Operator.EQUALS, value: 'tehnologija', caseSensitive: false },
+      // Fix: Using Operator.CONTAINS enum member instead of string literal 'contains'
+      { targetKey: 'keywords', operator: Operator.CONTAINS, value: 'gaming, konzole', caseSensitive: false }
     ],
     logicalOperator: 'OR',
     targetElementSelector: '.article-sidebar-promo',
@@ -39,84 +45,64 @@ export const MOCK_RULES = [
   {
     id: 'mock-4',
     name: 'Ožujsko: Reprezentacija Campaign',
-    conditions: [{ targetKey: 'keywords', operator: 'contains', value: 'vatreni, hns, nogomet', caseSensitive: false }],
+    // Fix: Using Operator.CONTAINS enum member instead of string literal 'contains'
+    conditions: [{ targetKey: 'keywords', operator: Operator.CONTAINS, value: 'vatreni, hns, nogomet', caseSensitive: false }],
     logicalOperator: 'AND',
     targetElementSelector: '.footer-takeover-logo',
     action: 'hide',
     isActive: true,
     respectAdsEnabled: false,
     createdAt: Date.now() - 400000
+  }
+];
+
+export const MOCK_AUDIT_LOG: AuditLogEntry[] = [
+  {
+    id: 'log-1',
+    timestamp: Date.now() - 1000 * 60 * 5, // prije 5 min
+    user: 'admin',
+    action: 'PUBLISH_PROD',
+    details: 'Objavljena skripta na produkciju. Aktivno 14 pravila.',
+    snapshotId: 'snap_prod_latest'
   },
   {
-    id: 'mock-5',
-    name: 'Tesla: Lifestyle Clean',
-    conditions: [{ targetKey: 'section', operator: 'equals', value: 'lifestyle', caseSensitive: false }],
-    logicalOperator: 'AND',
-    targetElementSelector: '.native-ad-unit',
-    action: 'show',
-    isActive: true,
-    respectAdsEnabled: true,
-    createdAt: Date.now() - 500000
+    id: 'log-2',
+    timestamp: Date.now() - 1000 * 60 * 60 * 2, // prije 2h
+    user: 'user',
+    action: 'ROLLBACK',
+    details: 'Hitni povratak na verziju od jučer zbog greške u selektoru.',
+    snapshotId: 'snap_yesterday_stable'
   },
   {
-    id: 'mock-6',
-    name: 'Nike: Gol.hr Running Focus',
-    conditions: [
-      { targetKey: 'site', operator: 'equals', value: 'gol', caseSensitive: false },
-      { targetKey: 'keywords', operator: 'contains', value: 'trčanje', caseSensitive: false }
-    ],
-    logicalOperator: 'AND',
-    targetElementSelector: '.branding-header-wrap',
-    action: 'hide',
-    isActive: true,
-    respectAdsEnabled: true,
-    createdAt: Date.now() - 600000
+    id: 'log-3',
+    timestamp: Date.now() - 1000 * 60 * 60 * 4, // prije 4h
+    user: 'admin',
+    action: 'TOGGLE',
+    details: 'Pravilo "Ožujsko: Reprezentacija Campaign" je privremeno isključeno.',
+    snapshotId: 'snap_toggle_oz'
   },
   {
-    id: 'mock-7',
-    name: 'Disney+: Showbiz Takeover',
-    conditions: [{ targetKey: 'section', operator: 'equals', value: 'show-business', caseSensitive: false }],
-    logicalOperator: 'AND',
-    targetElementSelector: '.interstitial-ad-container',
-    action: 'hide',
-    isActive: true,
-    respectAdsEnabled: true,
-    createdAt: Date.now() - 700000
+    id: 'log-4',
+    timestamp: Date.now() - 1000 * 60 * 60 * 24, // prije 1 dan
+    user: 'user',
+    action: 'UPDATE',
+    details: 'Ažurirani keywords za Heineken kampanju (dodano: "euro2026").',
+    snapshotId: 'snap_heineken_v2'
   },
   {
-    id: 'mock-8',
-    name: 'Samsung: S25 Ultra Promo',
-    conditions: [
-      { targetKey: 'page_type', operator: 'equals', value: 'article', caseSensitive: false },
-      { targetKey: 'section', operator: 'equals', value: 'tehnologija', caseSensitive: false }
-    ],
-    logicalOperator: 'AND',
-    targetElementSelector: '#mid-article-mpu',
-    action: 'hide',
-    isActive: false,
-    respectAdsEnabled: true,
-    createdAt: Date.now() - 800000
+    id: 'log-5',
+    timestamp: Date.now() - 1000 * 60 * 60 * 25, // prije 1 dan i 1h
+    user: 'admin',
+    action: 'CREATE',
+    details: 'Kreirano novo pravilo: "Disney+: Showbiz Takeover".',
+    snapshotId: 'snap_disney_init'
   },
   {
-    id: 'mock-9',
-    name: 'Coca-Cola: Christmas Spirit',
-    conditions: [{ targetKey: 'keywords', operator: 'contains', value: 'blagdani, recepti', caseSensitive: false }],
-    logicalOperator: 'OR',
-    targetElementSelector: '.floating-video-ad',
-    action: 'hide',
-    isActive: true,
-    respectAdsEnabled: true,
-    createdAt: Date.now() - 900000
-  },
-  {
-    id: 'mock-10',
-    name: 'Volvo: Safety First',
-    conditions: [{ targetKey: 'keywords', operator: 'contains', value: 'sigurnost, auto', caseSensitive: false }],
-    logicalOperator: 'AND',
-    targetElementSelector: '.wallpaper-ad-left, .wallpaper-ad-right',
-    action: 'hide',
-    isActive: true,
-    respectAdsEnabled: false,
-    createdAt: Date.now() - 1000000
+    id: 'log-6',
+    timestamp: Date.now() - 1000 * 60 * 60 * 48, // prije 2 dana
+    user: 'admin',
+    action: 'PUBLISH_DEV',
+    details: 'Testna objava na DEV okruženje uspješna.',
+    snapshotId: 'snap_dev_test'
   }
 ];

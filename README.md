@@ -8,9 +8,17 @@
 Kako bi Build, Login i Purge radili ispravno, potrebno je podesiti sljedeće u Cloudflare Dashboardu:
 
 ### 1. Bindings (Settings > Functions)
+**PRODUKCIJSKI PROJEKT:**
 - **KV Namespace Binding**: 
   - Variable name: `AD_EXCLUSION_KV`
-  - KV namespace: Odaberite vaš namespace.
+  - KV namespace: Glavni produkcijski KV.
+
+**STAGING / DEV PROJEKT:**
+- **KV Namespace Binding**: 
+  - Variable name: `AD_EXCLUSION_KV_DEV`
+  - KV namespace: `AD_EXCLUSION_KV_DEV` (ID: 2b0b48a8f41b4d02ad878ea0181c1207).
+
+*Napomena: Backend automatski prepoznaje koji je KV dostupan i koristi ga.*
 
 ### 2. Variables and Secrets (Settings > Environment variables)
 Dodajte ove varijable pod **Secrets** (encrypted) za Production i Preview okruženja:

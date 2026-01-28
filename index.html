@@ -25,24 +25,25 @@
         code = code
           .replace(/import\s+React,\s+{[^}]*}\s+from\s+['"]react['"];?/g, (m) => `const {${m.match(/{([^}]*)}/)[1]}} = window.React;`)
           .replace(/import\s+React\s+from\s+['"]react['"];?/g, '')
-          .replace(/import\s+{([^}]*)}\s+from\s+['"]react['"];?/g, 'const {$1} = window.React;')
-          .replace(/import\s+{([^}]*)}\s+from\s+['"]@google\/genai['"];?/g, 'const {$1} = window.genAI;')
+          .replace(/import\s+{[^}]*\}\s+from\s+['"]react['"];?/g, 'const {$1} = window.React;')
+          .replace(/import\s+{[^}]*\}\s+from\s+['"]@google\/genai['"];?/g, 'const {$1} = window.genAI;')
           // External Libraries (Prism & Editor)
           .replace(/import\s+Prism\s+from\s+['"]prismjs['"];?/g, 'const { default: Prism } = window.PrismModule;')
           .replace(/import\s+Editor\s+from\s+['"]react-simple-code-editor['"];?/g, 'const { default: Editor } = window.SimpleCodeEditor;')
-          // Services - Updated regex to support both ./ and ../
-          .replace(/import\s+{[^}]*authService[^}]*}\s+from\s+['"]\.\.?\/.*authService\.ts['"];?/g, 'const { authService } = window.AuthModule;')
-          .replace(/import\s+{[^}]*dataService[^}]*}\s+from\s+['"]\.\.?\/.*dataService\.ts['"];?/g, 'const { dataService } = window.DataModule;')
-          .replace(/import\s+{[^}]*MOCK_RULES[^}]*}\s+from\s+['"]\.\.?\/.*mockData\.ts['"];?/g, 'const { MOCK_RULES } = window.MockDataModule;')
+          // Services - Generalized regex to capture all named imports
+          .replace(/import\s+({[^}]*authService[^}]*})\s+from\s+['"]\.\.?\/.*authService\.ts['"];?/g, 'const $1 = window.AuthModule;')
+          .replace(/import\s+({[^}]*dataService[^}]*})\s+from\s+['"]\.\.?\/.*dataService\.ts['"];?/g, 'const $1 = window.DataModule;')
+          .replace(/import\s+({[^}]*MOCK_RULES[^}]*})\s+from\s+['"]\.\.?\/.*mockData\.ts['"];?/g, 'const $1 = window.MockDataModule;')
           // Shared logic (Types and Constants)
           .replace(/import\s+{[^}]*}\s+from\s+['"]\.\.?\/types(\.ts)?['"];?/g, (m) => `const {${m.match(/{([^}]*)}/)[1]}} = window.TypesModule;`)
           .replace(/import\s+{[^}]*}\s+from\s+['"]\.\.?\/constants(\.ts)?['"];?/g, (m) => `const {${m.match(/{([^}]*)}/)[1]}} = window.ConstantsModule;`)
-          // Components - Updated regex to be more flexible with paths
-          .replace(/import\s+{[^}]*RuleForm[^}]*}\s+from\s+['"]\.\.?\/.*RuleForm\.tsx['"];?/g, 'const { RuleForm } = window.RuleFormModule;')
-          .replace(/import\s+{[^}]*RuleList[^}]*}\s+from\s+['"]\.\.?\/.*RuleList\.tsx['"];?/g, 'const { RuleList } = window.RuleListModule;')
-          .replace(/import\s+{[^}]*IntegrationPreview[^}]*}\s+from\s+['"]\.\.?\/.*IntegrationPreview\.tsx['"];?/g, 'const { IntegrationPreview } = window.IntegrationModule;')
-          .replace(/import\s+{[^}]*Sandbox[^}]*}\s+from\s+['"]\.\.?\/.*Sandbox\.tsx['"];?/g, 'const { Sandbox } = window.SandboxModule;')
-          .replace(/import\s+{[^}]*CodeEditor[^}]*}\s+from\s+['"]\.\.?\/.*CodeEditor\.tsx['"];?/g, 'const { CodeEditor } = window.CodeEditorModule;')
+          // Components
+          .replace(/import\s+({[^}]*RuleForm[^}]*})\s+from\s+['"]\.\.?\/.*RuleForm\.tsx['"];?/g, 'const $1 = window.RuleFormModule;')
+          .replace(/import\s+({[^}]*RuleList[^}]*})\s+from\s+['"]\.\.?\/.*RuleList\.tsx['"];?/g, 'const $1 = window.RuleListModule;')
+          .replace(/import\s+({[^}]*IntegrationPreview[^}]*})\s+from\s+['"]\.\.?\/.*IntegrationPreview\.tsx['"];?/g, 'const $1 = window.IntegrationModule;')
+          .replace(/import\s+({[^}]*Sandbox[^}]*})\s+from\s+['"]\.\.?\/.*Sandbox\.tsx['"];?/g, 'const $1 = window.SandboxModule;')
+          .replace(/import\s+({[^}]*CodeEditor[^}]*})\s+from\s+['"]\.\.?\/.*CodeEditor\.tsx['"];?/g, 'const $1 = window.CodeEditorModule;')
+          .replace(/import\s+({[^}]*AuditLog[^}]*})\s+from\s+['"]\.\.?\/.*AuditLog\.tsx['"];?/g, 'const $1 = window.AuditLogModule;')
           // Remove remaining local imports
           .replace(/import\s+.*\s+from\s+['"]\.\.?\/[^'"]*['"];?/g, '');
 
@@ -92,6 +93,7 @@
           await loadModule('RuleListModule', './components/RuleList.tsx');
           await loadModule('IntegrationModule', './components/IntegrationPreview.tsx');
           await loadModule('SandboxModule', './components/Sandbox.tsx');
+          await loadModule('AuditLogModule', './components/AuditLog.tsx');
 
           const appCode = await fetchAndTransform('./App.tsx');
           const appBlob = new Blob([appCode], { type: 'application/javascript' });

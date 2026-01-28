@@ -15,7 +15,8 @@ interface Env {
   CF_ZONE_ID?: string;
   CF_PURGE_URL?: string;
   CF_PURGE_URL_DEV?: string;
-  AD_EXCLUSION_KV: KVNamespace;
+  AD_EXCLUSION_KV?: KVNamespace;
+  AD_EXCLUSION_KV_DEV?: KVNamespace;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {

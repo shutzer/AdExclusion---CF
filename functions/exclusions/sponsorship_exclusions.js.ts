@@ -11,13 +11,25 @@ type PagesFunction<Env = any> = (context: {
 }) => Response | Promise<Response>;
 
 interface Env {
-  AD_EXCLUSION_KV: KVNamespace;
+  AD_EXCLUSION_KV?: KVNamespace;
+  AD_EXCLUSION_KV_DEV?: KVNamespace;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const dataRaw = context.env.AD_EXCLUSION_KV;
-  const data = await dataRaw.get("rules_data");
+  const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_DEV;
+  
   const fallback = "/* AdExclusion: No rules found or KV not bound */";
+  
+  const headers = {
+    "Content-Type": "application/javascript; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "public, max-age=60, s-maxage=60",
+    "X-Content-Type-Options": "nosniff",
+  };
+
+  if (!db) return new Response(fallback, { headers });
+
+  const data = await db.get("rules_data");
   const now = Date.now();
   
   // Formatiranje vremena za Europe/Zagreb
@@ -29,13 +41,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   });
   const croTime = croFormatter.format(new Date(now));
   
-  const headers = {
-    "Content-Type": "application/javascript; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Cache-Control": "public, max-age=60, s-maxage=60",
-    "X-Content-Type-Options": "nosniff",
-  };
-
   if (!data) return new Response(fallback, { headers });
 
   const parsed = JSON.parse(data);

@@ -1,6 +1,7 @@
 
 import { authService } from './authService.ts';
-import { MOCK_RULES } from './mockData.ts';
+import { MOCK_RULES, MOCK_AUDIT_LOG } from './mockData.ts';
+import { AuditLogEntry } from '../types.ts';
 
 const hostname = window.location.hostname;
 const IS_PROD = hostname.includes('pages.dev') || hostname.includes('dnevnik.hr');
@@ -35,7 +36,44 @@ export const dataService = {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authService.getToken()}`
         },
-        body: JSON.stringify({ rules, script, target })
+        body: JSON.stringify({ rules, script, target, user: authService.getRole() })
+      });
+      return response.json();
+    } catch (e) {
+      return { success: false, message: String(e) };
+    }
+  },
+
+  async getAuditLog(): Promise<AuditLogEntry[]> {
+    if (IS_DEV) {
+      // Vraćamo bogatiji set mock podataka za razvoj
+      return MOCK_AUDIT_LOG;
+    }
+    try {
+      const response = await fetch('/api/audit', {
+        headers: { 'Authorization': `Bearer ${authService.getToken()}` }
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.logs || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  async rollback(snapshotId: string) {
+    if (IS_DEV) {
+      alert(`Rollback simuliran za Snapshot: ${snapshotId}`);
+      return { success: true };
+    }
+    try {
+      const response = await fetch('/api/rollback', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authService.getToken()}`
+        },
+        body: JSON.stringify({ snapshotId, user: authService.getRole() })
       });
       return response.json();
     } catch (e) {
