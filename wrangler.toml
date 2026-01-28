@@ -3,11 +3,11 @@
 name = "adex-manager"
 pages_build_output_dir = "."
 
-[[kv_namespaces]]
-binding = "AD_EXCLUSION_KV"
-id = "a8017b5da883497c93f42d18b77325a3"
+# ⚠️ VAŽNO: Bindings se sada konfiguriraju isključivo kroz Cloudflare Dashboard
+# kako bi osigurali izolaciju između PROD i STAGE okruženja.
+# Odkomentirati samo za lokalni razvoj (wrangler dev).
 
-[[kv_namespaces]]
-binding = "AD_EXCLUSION_KV_DEV"
-id = "2b0b48a8f41b4d02ad878ea0181c1207"
-preview_id = "2b0b48a8f41b4d02ad878ea0181c1207"
+# [[kv_namespaces]]
+# binding = "AD_EXCLUSION_KV_DEV"
+# id = "2b0b48a8f41b4d02ad878ea0181c1207"
+# preview_id = "2b0b48a8f41b4d02ad878ea0181c1207"

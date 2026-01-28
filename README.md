@@ -5,23 +5,26 @@
 
 ## ✅ Cloudflare Dashboard Konfiguracija
 
-Kako bi Build, Login i Purge radili ispravno, potrebno je podesiti sljedeće u Cloudflare Dashboardu:
+Budući da koristimo isti kod za različita okruženja, **KV bindinge je potrebno ručno postaviti** u Cloudflare Dashboardu.
 
 ### 1. Bindings (Settings > Functions)
-**PRODUKCIJSKI PROJEKT:**
-- **KV Namespace Binding**: 
-  - Variable name: `AD_EXCLUSION_KV`
-  - KV namespace: Glavni produkcijski KV.
 
-**STAGING / DEV PROJEKT:**
-- **KV Namespace Binding**: 
-  - Variable name: `AD_EXCLUSION_KV_DEV`
-  - KV namespace: `AD_EXCLUSION_KV_DEV` (ID: 2b0b48a8f41b4d02ad878ea0181c1207).
+**ZA PRODUKCIJSKI PROJEKT (PROD):**
+1. Otiđite na **Settings** > **Functions**.
+2. Pod **KV Namespace Bindings** dodajte:
+   - **Variable name:** `AD_EXCLUSION_KV`
+   - **KV namespace:** Odaberite svoj *glavni produkcijski KV*.
 
-*Napomena: Backend automatski prepoznaje koji je KV dostupan i koristi ga.*
+**ZA STAGING / DEV PROJEKT:**
+1. Otiđite na **Settings** > **Functions**.
+2. Pod **KV Namespace Bindings** dodajte:
+   - **Variable name:** `AD_EXCLUSION_KV_DEV`
+   - **KV namespace:** Odaberite `AD_EXCLUSION_KV_DEV` (ili onaj koji završava na `...c1207`).
+
+*Objašnjenje: Kod automatski traži `AD_EXCLUSION_KV`. Ako ga ne nađe (jer smo na Stageu), traži `AD_EXCLUSION_KV_DEV`. Ovime osiguravamo da Stage nikada ne može pisati po Produkciji.*
 
 ### 2. Variables and Secrets (Settings > Environment variables)
-Dodajte ove varijable pod **Secrets** (encrypted) za Production i Preview okruženja:
+Dodajte ove varijable pod **Secrets** (encrypted) za oba okruženja:
 
 | Variable Name | Description | Mandatory |
 | :--- | :--- | :--- |
@@ -32,14 +35,10 @@ Dodajte ove varijable pod **Secrets** (encrypted) za Production i Preview okruž
 | `CF_PURGE_URL` | URL Produkcijske skripte (npr. `.../exclusions/sponsorship_exclusions.js`) | DA |
 | `CF_PURGE_URL_DEV` | URL Development skripte (npr. `.../exclusions/sponsorship_exclusions-dev.js`) | DA |
 
-### Razine Pristupa (RBAC)
-- **admin**: Puni pristup sustavu, uključujući Custom JavaScript Injection.
-- **user**: Standardni pristup, ali bez mogućnosti dodavanja ili pregleda Custom JS koda.
-
 ### Workflow Okruženja
 1. **DRAFT**: Sva pravila se automatski spremaju u radni prostor prilikom uređivanja.
-2. **OBJAVI NA DEV**: Šalje trenutna pravila na `/exclusions/sponsorship_exclusions-dev.js`. Koristite ovo za testiranje na portalu bez utjecaja na korisnike.
-3. **OBJAVI NA PROD**: Šalje pravila na `/exclusions/sponsorship_exclusions.js`. Ovo je "Live" okruženje.
+2. **OBJAVI NA DEV**: Šalje trenutna pravila na `/exclusions/sponsorship_exclusions-dev.js`.
+3. **OBJAVI NA PROD**: Šalje pravila na `/exclusions/sponsorship_exclusions.js`.
 
 ---
 *Senior Systems Architect*
