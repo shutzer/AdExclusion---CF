@@ -198,16 +198,14 @@ const App = () => {
         
         <div className="flex items-center gap-2 md:gap-3">
           <div className="hidden md:flex items-center gap-3">
-            {canManageJs && (
-              <button 
-                onClick={() => publish('dev')} 
-                disabled={!!isPublishing} 
-                className="bg-indigo-600 text-white px-4 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-indigo-700 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm"
-                title="Objavi na /exclusions/sponsorship_exclusions-dev.js"
-              >
-                🛠️ {isPublishing === 'dev' ? '...' : 'OBJAVI NA DEV'}
-              </button>
-            )}
+            <button 
+              onClick={() => publish('dev')} 
+              disabled={!!isPublishing} 
+              className="bg-indigo-600 text-white px-4 py-2.5 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-indigo-700 disabled:opacity-50 rounded-lg flex items-center gap-2 shadow-sm"
+              title="Objavi na /exclusions/sponsorship_exclusions-dev.js"
+            >
+              🛠️ {isPublishing === 'dev' ? '...' : 'OBJAVI NA DEV/STAGE'}
+            </button>
             <button 
               onClick={() => publish('prod')} 
               disabled={!!isPublishing} 
@@ -228,15 +226,13 @@ const App = () => {
 
       {/* Mobile Floating Action Balloons */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60] md:hidden px-4 w-full max-w-sm">
-        {canManageJs && (
-          <button 
-            onClick={() => publish('dev')} 
-            disabled={!!isPublishing}
-            className="flex-1 bg-indigo-600/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20"
-          >
-            🛠️ DEV
-          </button>
-        )}
+        <button 
+          onClick={() => publish('dev')} 
+          disabled={!!isPublishing}
+          className="flex-1 bg-indigo-600/90 backdrop-blur-md text-white h-14 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 border border-white/20"
+        >
+          🛠️ DEV/STAGE
+        </button>
         <button 
           onClick={() => publish('prod')} 
           disabled={!!isPublishing}
