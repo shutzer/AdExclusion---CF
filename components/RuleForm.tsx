@@ -30,6 +30,20 @@ const toLocalDateTimeString = (timestamp: number | undefined): string => {
   return `${y}-${m}-${d}T${hh}:${mm}`;
 };
 
+/**
+ * Validira CSS selektor koristeći nativni browser parser.
+ * Ako browser baci grešku, selektor nije validan.
+ */
+const isValidSelector = (selector: string): boolean => {
+  try {
+    // createDocumentFragment je lakši od document i ne renderira se
+    document.createDocumentFragment().querySelector(selector);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialData, canManageJs }) => {
   const [name, setName] = useState(initialData?.name || '');
   const [logicalOperator, setLogicalOperator] = useState<LogicalOperator>(initialData?.logicalOperator || 'AND');
@@ -46,6 +60,7 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
   const [endDate, setEndDate] = useState<string>(toLocalDateTimeString(initialData?.endDate));
   
   const [showAdvanced, setShowAdvanced] = useState(!!initialData?.customJs && canManageJs);
+  const [selectorError, setSelectorError] = useState<string | null>(null);
 
   const addCondition = () => {
     setConditions([...conditions, { targetKey: 'section', operator: Operator.EQUALS, value: '', caseSensitive: false }]);
@@ -63,10 +78,30 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
     setConditions(newConditions);
   };
 
+  const handleSelectorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setSelector(newVal);
+    
+    // Clear error on change if it becomes valid or empty
+    if (!newVal || isValidSelector(newVal)) {
+      setSelectorError(null);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!name || conditions.some(c => !c.value) || !selector) {
       alert("Molimo popunite sva obavezna polja.");
+      return;
+    }
+
+    if (!isValidSelector(selector)) {
+      setSelectorError("Neispravna sintaksa CSS selektora.");
+      // Scroll to selector input
+      const selectorInput = document.getElementById('targetSelectorInput');
+      selectorInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      selectorInput?.focus();
       return;
     }
 
@@ -247,13 +282,32 @@ export const RuleForm: React.FC<RuleFormProps> = ({ onSubmit, onCancel, initialD
       <div className="grid grid-cols-1 gap-5 pt-3">
         <div>
           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest ml-1">Target Element (CSS Selektor)</label>
-          <input
-            type="text"
-            value={selector}
-            onChange={(e) => setSelector(e.target.value)}
-            placeholder="npr. .bg-branding-main ili #ad-banner"
-            className="w-full h-14 md:h-12 bg-slate-50 border border-slate-200 px-4 rounded-xl text-sm font-bold font-mono outline-none shadow-inner focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all"
-          />
+          <div className="relative">
+            <input
+              id="targetSelectorInput"
+              type="text"
+              value={selector}
+              onChange={handleSelectorChange}
+              placeholder="npr. .bg-branding-main ili #ad-banner"
+              className={`w-full h-14 md:h-12 bg-slate-50 border px-4 rounded-xl text-sm font-bold font-mono outline-none shadow-inner transition-all ${
+                selectorError 
+                  ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10' 
+                  : 'border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5'
+              }`}
+            />
+            {selector && !selectorError && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" title="Valid Syntax">
+                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+              </div>
+            )}
+          </div>
+          
+          {selectorError && (
+            <div className="mt-2 flex items-center gap-2 text-red-500 animate-in fade-in slide-in-from-top-1">
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <span className="text-[10px] font-bold uppercase tracking-wide">{selectorError}</span>
+            </div>
+          )}
         </div>
 
         {canManageJs && (
