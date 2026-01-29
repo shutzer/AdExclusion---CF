@@ -16,15 +16,35 @@ interface Env {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  // Detect Environment
+  const isProd = !!context.env.AD_EXCLUSION_KV;
   const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_STAGE;
   
   if (!db) {
-    return new Response(JSON.stringify({ error: "KV Storage not bound" }), { status: 500 });
+    // Critical Config Error: Binding not active yet
+    return new Response(JSON.stringify({ 
+      rules: [], 
+      error: "KV Binding Missing. Please Retry Deployment in Cloudflare Dashboard." 
+    }), { status: 503, headers: { "Content-Type": "application/json" } });
   }
 
-  const data = await db.get("rules_data");
+  // 1. Try to fetch standard Workspace data
+  let data = await db.get("rules_data");
+
+  // 2. Smart Fallback for STAGE/DEV:
+  // If workspace is empty, try to recover 'rules_data_dev' (migration helper)
+  if (!data && !isProd) {
+    const devData = await db.get("rules_data_dev");
+    if (devData) {
+      data = devData;
+    }
+  }
+
   return new Response(data || JSON.stringify({ rules: [], script: "" }), {
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "X-AdEx-Source": isProd ? "PROD" : "STAGE" // Debug Header
+    },
   });
 };
 
@@ -33,7 +53,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_STAGE;
     
     if (!db) {
-      throw new Error("KV Storage not bound (Check Cloudflare Dashboard bindings)");
+      throw new Error("KV Storage not bound. Please Redeploy.");
     }
 
     const body = await context.request.json();
@@ -95,7 +115,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const updatedLogs = [newEntry, ...auditLogs].slice(0, 100);
     await db.put("audit_log", JSON.stringify(updatedLogs));
 
-    // DEV specific logic
+    // DEV specific logic: Sync Workspace with Dev Publish
     if (target === 'dev') {
        const workspaceDataRaw = await db.get("rules_data");
        const workspaceData = workspaceDataRaw ? JSON.parse(workspaceDataRaw) : { rules: [], script: "" };
