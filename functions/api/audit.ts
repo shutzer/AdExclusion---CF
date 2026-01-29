@@ -9,11 +9,11 @@ type PagesFunction<Env = any> = (context: {
 
 interface Env {
   AD_EXCLUSION_KV?: KVNamespace;
-  AD_EXCLUSION_KV_DEV?: KVNamespace;
+  AD_EXCLUSION_KV_STAGE?: KVNamespace;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_DEV;
+  const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_STAGE;
   
   if (!db) {
     return new Response(JSON.stringify({ logs: [], error: "KV not bound" }), {

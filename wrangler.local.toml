@@ -8,6 +8,6 @@ pages_build_output_dir = "."
 # Cloudflare Pages je ignorira, što nam omogućuje ručno postavljanje bindinga u Dashboardu.
 
 [[kv_namespaces]]
-binding = "AD_EXCLUSION_KV_DEV"
+binding = "AD_EXCLUSION_KV_STAGE"
 id = "2b0b48a8f41b4d02ad878ea0181c1207"
 preview_id = "2b0b48a8f41b4d02ad878ea0181c1207"

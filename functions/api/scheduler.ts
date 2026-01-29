@@ -11,7 +11,7 @@ type PagesFunction<Env = any> = (context: {
 
 interface Env {
   AD_EXCLUSION_KV?: KVNamespace;
-  AD_EXCLUSION_KV_DEV?: KVNamespace;
+  AD_EXCLUSION_KV_STAGE?: KVNamespace;
   CF_API_TOKEN?: string;
   CF_ZONE_ID?: string;
   CF_PURGE_URL?: string;
@@ -49,9 +49,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const url = new URL(context.request.url);
     const paramTarget = url.searchParams.get('target');
     
-    // Određujemo koju BAZU čitamo (Dev ili Prod)
+    // Određujemo koju BAZU čitamo (Dev/Stage ili Prod)
     const target = (paramTarget === 'dev' || paramTarget === 'stage') ? 'dev' : 'prod';
-    const db = target === 'dev' ? context.env.AD_EXCLUSION_KV_DEV : context.env.AD_EXCLUSION_KV;
+    const db = target === 'dev' ? context.env.AD_EXCLUSION_KV_STAGE : context.env.AD_EXCLUSION_KV;
     
     // DEFINIRAMO LISTU ZA PURGE: Uzimamo OBA URL-a ako postoje
     // Zahtjev: "I oba se moraju probusiti ako ima objavljenih schedule promjena na bilo kojem."
@@ -64,7 +64,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     // Provjera konfiguracije
     const missingKeys: string[] = [];
-    if (!db) missingKeys.push(target === 'dev' ? 'AD_EXCLUSION_KV_DEV' : 'AD_EXCLUSION_KV');
+    if (!db) missingKeys.push(target === 'dev' ? 'AD_EXCLUSION_KV_STAGE' : 'AD_EXCLUSION_KV');
     if (!zoneId) missingKeys.push('CF_ZONE_ID');
     if (!apiToken) missingKeys.push('CF_API_TOKEN');
     if (urlsToPurge.length === 0) missingKeys.push('CF_PURGE_URL OR CF_PURGE_URL_DEV');
