@@ -16,9 +16,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const adminPass = context.env.ADMIN_PASS;
     const userPass = context.env.USER_PASS;
 
+    // DEBUGGING: Log available env keys (SAFETY: Do not log values!)
+    // Ovo će se ispisati u Cloudflare Logs tabu ako dođe do greške
+    const availableEnvKeys = Object.keys(context.env || {});
+    
     if (!adminPass) {
-      console.error("ADMIN_PASS secret is missing in Cloudflare Dashboard.");
-      return new Response(JSON.stringify({ success: false, message: "Server configuration error" }), {
+      console.error("[CRITICAL] ADMIN_PASS secret is missing.");
+      console.error("[DEBUG] Available ENV keys:", availableEnvKeys.join(", "));
+      
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "Server configuration error: ADMIN_PASS missing. Please Redeploy." 
+      }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
       });
@@ -46,6 +55,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
 
   } catch (err) {
+    console.error("[LOGIN ERROR]", err);
     return new Response(JSON.stringify({ success: false, message: "Neispravan zahtjev" }), {
       status: 400,
       headers: { "Content-Type": "application/json" }

@@ -43,5 +43,23 @@ Dodajte ove varijable pod **Settings > Environment variables** za oba okruženja
 | `CF_PURGE_URL` | URL Produkcijske skripte |
 | `CF_PURGE_URL_DEV` | URL Development skripte |
 
+### 📝 Kako doći do Cloudflare podataka?
+
+**1. CF_ZONE_ID (ID Zone)**
+1. Otvorite Cloudflare Dashboard i odaberite svoju domenu.
+2. Na glavnom **Overview** tabu, skrolajte dolje dok s desne strane ne vidite sekciju **API**.
+3. Kopirajte vrijednost pod **Zone ID**.
+
+**2. CF_API_TOKEN (Cache Purge Token)**
+1. Otiđite na [My Profile > API Tokens](https://dash.cloudflare.com/profile/api-tokens).
+2. Kliknite **Create Token**.
+3. Odaberite **Create Custom Token** (na dnu).
+4. Imenujte ga (npr. "AdExclusion Purge").
+5. Pod **Permissions** dodajte:
+   *   `Zone` -> `Cache Purge` -> `Purge`
+6. Pod **Zone Resources** odaberite:
+   *   `Include` -> `Specific zone` -> *Vaša domena*
+7. Kliknite **Continue to Summary** -> **Create Token** i kopirajte ga.
+
 ---
 *Senior Systems Architect*
