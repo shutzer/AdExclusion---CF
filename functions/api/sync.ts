@@ -112,8 +112,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       snapshotId
     };
 
-    // Keep last 100 logs
-    const updatedLogs = [newEntry, ...auditLogs].slice(0, 100);
+    // RETENTION POLICY: Keep only last 30 logs
+    const updatedLogs = [newEntry, ...auditLogs].slice(0, 30);
     await db.put("audit_log", JSON.stringify(updatedLogs));
 
     // DEV specific logic: Sync Workspace with Dev Publish

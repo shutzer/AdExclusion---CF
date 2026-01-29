@@ -52,7 +52,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       snapshotId
     };
 
-    await db.put("audit_log", JSON.stringify([newEntry, ...auditLogs].slice(0, 100)));
+    // RETENTION POLICY: Keep only last 30 logs
+    await db.put("audit_log", JSON.stringify([newEntry, ...auditLogs].slice(0, 30)));
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { "Content-Type": "application/json" }
