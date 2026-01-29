@@ -19,12 +19,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // Detect Environment
   const isProd = !!context.env.AD_EXCLUSION_KV;
   const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_STAGE;
+  const bindingName = isProd ? "AD_EXCLUSION_KV (PROD)" : "AD_EXCLUSION_KV_STAGE (STAGE)";
   
   if (!db) {
-    // Critical Config Error: Binding not active yet
     return new Response(JSON.stringify({ 
       rules: [], 
-      error: "KV Binding Missing. Please Retry Deployment in Cloudflare Dashboard." 
+      error: `KV Binding Missing. Checked: ${bindingName}` 
     }), { status: 503, headers: { "Content-Type": "application/json" } });
   }
 
@@ -43,7 +43,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   return new Response(data || JSON.stringify({ rules: [], script: "" }), {
     headers: { 
       "Content-Type": "application/json",
-      "X-AdEx-Source": isProd ? "PROD" : "STAGE" // Debug Header
+      "X-AdEx-Source": isProd ? "PROD" : "STAGE",
+      "X-KV-Binding": bindingName
     },
   });
 };

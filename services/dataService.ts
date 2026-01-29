@@ -19,11 +19,21 @@ export const dataService = {
       const response = await fetch('/api/sync', {
         headers: { 'Authorization': `Bearer ${authService.getToken()}` }
       });
-      if (!response.ok) return { rules: [] };
+      
+      if (!response.ok) {
+        let errorMessage = `Server Error: ${response.status}`;
+        try {
+          const errorBody = await response.json();
+          if (errorBody.error) errorMessage = errorBody.error;
+        } catch(e) {}
+        
+        throw new Error(errorMessage);
+      }
+      
       return response.json();
     } catch (e) {
       console.error("Sync fetch failed", e);
-      return { rules: [] };
+      throw e;
     }
   },
 
@@ -46,7 +56,6 @@ export const dataService = {
 
   async getAuditLog(): Promise<AuditLogEntry[]> {
     if (IS_DEV) {
-      // Vraćamo bogatiji set mock podataka za razvoj
       return MOCK_AUDIT_LOG;
     }
     try {

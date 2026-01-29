@@ -28,6 +28,7 @@ const App = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingRule, setEditingRule] = useState<BlacklistRule | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState<null | 'prod' | 'dev'>(null);
   const [showDevTools, setShowDevTools] = useState(false);
   const [showSandbox, setShowSandbox] = useState(true);
@@ -38,9 +39,13 @@ const App = () => {
 
   const refreshRules = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await dataService.getRules();
       setRules(data.rules || []);
+    } catch (err: any) {
+      console.error("Failed to load rules:", err);
+      setError(err.message || "Greška pri učitavanju pravila.");
     } finally {
       setLoading(false);
     }
@@ -171,6 +176,21 @@ const App = () => {
 
       <main className="flex-1 max-w-7xl w-full mx-auto py-4 md:py-5 px-4 md:px-8 space-y-4">
         
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+            <div className="text-red-500">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <div>
+              <h4 className="text-red-800 font-black text-xs uppercase tracking-widest">Sistemska Greška</h4>
+              <p className="text-red-600 text-xs font-medium mt-1">{error}</p>
+            </div>
+            <button onClick={refreshRules} className="ml-auto bg-white border border-red-200 text-red-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase hover:bg-red-50">
+              Pokušaj ponovno
+            </button>
+          </div>
+        )}
+
         {/* View Switcher */}
         <div className="flex p-1 bg-white border border-slate-200 rounded-xl w-fit shadow-sm">
           <button 
