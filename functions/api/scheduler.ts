@@ -120,7 +120,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (transitioningRules.length === 0) {
       return new Response(JSON.stringify({ 
         success: true, 
-        message: "No rules transitioning at this time.", 
+        message: "⏸️ No rules transitioning at this time.", 
         serverTime: new Date().toISOString(),
         checkedRules: rules.length
       }), { 
@@ -147,8 +147,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     return new Response(JSON.stringify({
       success: true,
-      action: "PURGE_TRIGGERED",
-      reason: "Rule Transition Detected",
+      action: "✅ PURGE_TRIGGERED",
+      reason: "🔄 Rule Transition Detected",
       targetDB: target,
       purgedUrls: urlsToPurge,
       transitioningRules: transitioningRules.map((r:any) => ({ name: r.name, start: r.startDate, end: r.endDate })),
