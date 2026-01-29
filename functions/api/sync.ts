@@ -15,15 +15,22 @@ interface Env {
   AD_EXCLUSION_KV_STAGE?: KVNamespace;
 }
 
-// Helper za usporedbu objekata (za detekciju promjena u sadržaju)
+// Helper za usporedbu objekata
 function isRuleDifferent(r1: any, r2: any): boolean {
-  // Ignoriramo isActive jer to ide u TOGGLE, ignoriramo createdAt
   const normalize = (r: any) => JSON.stringify({ ...r, isActive: true, createdAt: 0 });
   return normalize(r1) !== normalize(r2);
 }
 
+// Helper za formatiranje datuma u logovima
+function formatDate(ts: number | undefined): string {
+  if (!ts) return '';
+  return new Intl.DateTimeFormat('hr-HR', {
+    month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  }).format(new Date(ts));
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
-  // Detect Environment
   const isProd = !!context.env.AD_EXCLUSION_KV;
   const db = context.env.AD_EXCLUSION_KV || context.env.AD_EXCLUSION_KV_STAGE;
   const bindingName = isProd ? "AD_EXCLUSION_KV (PROD)" : "AD_EXCLUSION_KV_STAGE (STAGE)";
@@ -35,15 +42,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }), { status: 503, headers: { "Content-Type": "application/json" } });
   }
 
-  // 1. Try to fetch standard Workspace data
   let data = await db.get("rules_data");
-
-  // 2. Smart Fallback for STAGE/DEV:
   if (!data && !isProd) {
     const devData = await db.get("rules_data_dev");
-    if (devData) {
-      data = devData;
-    }
+    if (devData) data = devData;
   }
 
   return new Response(data || JSON.stringify({ rules: [], script: "" }), {
@@ -67,7 +69,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const { target, rules, script, user } = body;
     const storageKey = target === 'dev' ? "rules_data_dev" : "rules_data";
     
-    // 1. Get current data for comparison
+    // 1. Get current data
     const oldDataRaw = await db.get(storageKey);
     const oldData = oldDataRaw ? JSON.parse(oldDataRaw) : { rules: [], script: "" };
     const oldRules = oldData.rules || [];
@@ -81,7 +83,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // 3. Save to KV
     await db.put(storageKey, JSON.stringify(updatedData));
     
-    // 4. Handle audit logging and snapshots
+    // 4. Handle audit logging
     const snapshotId = `snapshot_${Date.now()}`;
     await db.put(snapshotId, JSON.stringify(updatedData.rules));
 
@@ -90,27 +92,44 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let details = "";
 
     if (script) {
-      // Slučaj: PUBLISH (Objava skripte)
+      // --- LOGIKA ZA OBJAVU (PUBLISH) ---
       action = target === 'dev' ? "PUBLISH_DEV" : "PUBLISH_PROD";
-      details = `Generirana i objavljena nova skripta (${rules.length} pravila) na ${target.toUpperCase()}.`;
+      
+      const activeRules = (rules || []).filter((r: any) => r.isActive);
+      const now = Date.now();
+      
+      const immediateRules = activeRules.filter((r: any) => !r.startDate || r.startDate <= now);
+      const scheduledRules = activeRules.filter((r: any) => r.startDate && r.startDate > now);
+      
+      let lines: string[] = [];
+      
+      if (immediateRules.length > 0) {
+        const names = immediateRules.map((r: any) => r.name).join(', ');
+        lines.push(`✅ Odmah aktivno (${immediateRules.length}): ${names}.`);
+      }
+      
+      if (scheduledRules.length > 0) {
+        const scheduledDetails = scheduledRules.map((r: any) => `${r.name} (start: ${formatDate(r.startDate)})`).join(', ');
+        lines.push(`⏰ Zakazano (${scheduledRules.length}): ${scheduledDetails}.`);
+      }
+      
+      if (lines.length === 0) {
+        details = `Objavljena prazna skripta (nema aktivnih pravila).`;
+      } else {
+        details = lines.join(' ');
+      }
+
     } else {
-      // Slučaj: SAVE (Rad na pravilima)
+      // --- LOGIKA ZA WORKSPACE IZMJENE (CREATE/UPDATE/DELETE) ---
       const newIds = new Set(rules.map((r: any) => r.id));
       const oldIds = new Set(oldRules.map((r: any) => r.id));
 
-      // 1. Detekcija dodavanja
       const addedRule = rules.find((r: any) => !oldIds.has(r.id));
-      
-      // 2. Detekcija brisanja
       const deletedRule = oldRules.find((r: any) => !newIds.has(r.id));
-
-      // 3. Detekcija izmjena
       const modifiedRule = rules.find((r: any) => {
         const old = oldRules.find((or: any) => or.id === r.id);
         return old && isRuleDifferent(r, old);
       });
-
-      // 4. Detekcija toggle-a (samo status)
       const toggledRule = rules.find((r: any) => {
         const old = oldRules.find((or: any) => or.id === r.id);
         return old && r.isActive !== old.isActive && !isRuleDifferent(r, old);
@@ -118,18 +137,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
       if (addedRule) {
         action = "CREATE";
-        details = `Kreirano novo pravilo: "${addedRule.name}"`;
+        const condSummary = addedRule.conditions.map((c: any) => `${c.targetKey} ${c.operator} '${c.value}'`).join(' & ');
+        const timing = addedRule.startDate ? ` | Start: ${formatDate(addedRule.startDate)}` : '';
+        const actionType = addedRule.action === 'show' ? 'PRIKAŽI' : 'SAKRIJ';
+        
+        details = `Novo pravilo: "${addedRule.name}". Akcija: ${actionType} na "${addedRule.targetElementSelector}". Uvjeti: [${condSummary}]${timing}`;
+      
       } else if (deletedRule) {
         action = "DELETE";
         details = `Obrisano pravilo: "${deletedRule.name}"`;
+      
       } else if (modifiedRule) {
         action = "UPDATE";
-        details = `Izmjenjene postavke pravila: "${modifiedRule.name}"`;
+        const old = oldRules.find((or: any) => or.id === modifiedRule.id);
+        const changes: string[] = [];
+        
+        if (old.targetElementSelector !== modifiedRule.targetElementSelector) changes.push(`selektor ('${old.targetElementSelector}' -> '${modifiedRule.targetElementSelector}')`);
+        if (JSON.stringify(old.conditions) !== JSON.stringify(modifiedRule.conditions)) changes.push(`uvjeti`);
+        if (old.startDate !== modifiedRule.startDate) changes.push(`početak`);
+        if (old.endDate !== modifiedRule.endDate) changes.push(`kraj`);
+        if (old.action !== modifiedRule.action) changes.push(`akcija`);
+        
+        details = `Ažurirano "${modifiedRule.name}": Promijenjeno ${changes.join(', ') || 'konfiguracija'}.`;
+      
       } else if (toggledRule) {
         action = "TOGGLE";
         details = `Pravilo "${toggledRule.name}" je ${toggledRule.isActive ? 'uključeno' : 'isključeno'}`;
       } else {
-        // Fallback ako nismo sigurni (npr. promjena redoslijeda)
         details = `Ažuriranje liste pravila (Workspace Save)`;
       }
     }
@@ -150,7 +184,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const updatedLogs = [newEntry, ...auditLogs].slice(0, 30);
     await db.put("audit_log", JSON.stringify(updatedLogs));
 
-    // DEV specific logic: Sync Workspace with Dev Publish
     if (target === 'dev') {
        const workspaceDataRaw = await db.get("rules_data");
        const workspaceData = workspaceDataRaw ? JSON.parse(workspaceDataRaw) : { rules: [], script: "" };
